@@ -1,0 +1,22 @@
+server:
+  port: 8080
+  shutdown: graceful
+
+spring:
+  application:
+    name: product-service
+
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5432/microservices
+    username: postgres
+    password: postgres
+    pool:
+      initial-size: 10
+      max-size: 20
+
+  flyway:
+    url: jdbc:postgresql://localhost:5432/microservices
+    user: postgres
+    password: postgres
+    schemas: [ "microservices" ]
+
