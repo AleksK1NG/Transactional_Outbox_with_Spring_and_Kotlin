@@ -10,6 +10,11 @@ import org.springframework.web.bind.annotation.*
 @RequestMapping(path = ["/api/v1/orders"])
 class OrderController {
 
+    @GetMapping
+    suspend fun getOrders() = coroutineScope {
+        ResponseEntity.ok().body("OK").also { log.info("getOrderByID") }
+    }
+
     @GetMapping(path = ["{id}"])
     suspend fun getOrderByID(@PathVariable id: String) = coroutineScope {
          ResponseEntity.ok().body("OK").also { log.info("getOrderByID") }
