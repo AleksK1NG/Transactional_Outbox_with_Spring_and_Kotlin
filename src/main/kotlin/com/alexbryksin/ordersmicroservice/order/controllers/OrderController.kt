@@ -3,19 +3,28 @@ package com.alexbryksin.ordersmicroservice.order.controllers
 import kotlinx.coroutines.coroutineScope
 import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 
 
 @RestController
 @RequestMapping(path = ["/api/v1/orders"])
 class OrderController {
 
-    @GetMapping
-    suspend fun getOrderByID() = coroutineScope {
+    @GetMapping(path = ["{id}"])
+    suspend fun getOrderByID(@PathVariable id: String) = coroutineScope {
          ResponseEntity.ok().body("OK").also { log.info("getOrderByID") }
     }
+
+    @PostMapping
+    suspend fun createOrder() = coroutineScope {
+        ResponseEntity.ok().body("OK").also { log.info("createOrder") }
+    }
+
+    @PutMapping(path = ["{id}"])
+    suspend fun updateOrder(@PathVariable id: String) = coroutineScope {
+        ResponseEntity.ok().body("OK").also { log.info("createOrder") }
+    }
+
 
 
     companion object {
