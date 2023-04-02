@@ -24,3 +24,7 @@ spring:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+
+logging:
+  level:
+    io.r2dbc.postgresql.QUERY: DEBUG
