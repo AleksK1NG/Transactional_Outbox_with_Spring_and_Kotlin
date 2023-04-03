@@ -20,11 +20,54 @@ spring:
     password: postgres
     schemas: [ "microservices" ]
 
+  kafka:
+    consumer:
+      group-id: product-write-service-group-id
+    bootstrap-servers: localhost:9092
+
 #springdoc: http://localhost:8080/webjars/swagger-ui/index.html#/
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
 
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  endpoints:
+    web:
+      exposure:
+        include: '*'
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+
 logging:
   level:
     io.r2dbc.postgresql.QUERY: DEBUG
+
+
+topics:
+  bankAccountCreated:
+    name: bank-account-created
+    partitions: 3
+    replication: 1
+  balanceDeposited:
+    name: balance-deposited
+    partitions: 3
+    replication: 1
+  balanceWithdrawn:
+    name: balance-withdrawn
+    partitions: 3
+    replication: 1
+  emailChanged:
+    name: email-changed
+    partitions: 3
+    replication: 1
