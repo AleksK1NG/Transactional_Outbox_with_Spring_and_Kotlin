@@ -18,6 +18,8 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.reactive.TransactionalOperator
+import org.springframework.transaction.reactive.executeAndAwait
 import java.time.LocalDateTime
 import java.util.*
 
@@ -27,30 +29,36 @@ class BankAccountCommandServiceImpl(
     private val bankAccountRepository: BankAccountRepository,
     private val outboxRepository: OutboxRepository,
     private val objectMapper: ObjectMapper,
+    private val txOp: TransactionalOperator
 ) : BankAccountCommandService {
 
-
-    @Transactional(timeout = 3)
+    //    @Transactional(timeout = 3)
     override suspend fun on(command: CreateBankAccountCommand): BankAccount = withContext(Dispatchers.IO) {
         val bankAccount = BankAccount.of(command)
-        val savedBankAccount = bankAccountRepository.save(BankAccountEntity.of(bankAccount))
-        log.info("saved bank account: $savedBankAccount")
+        val savedEvent = txOp.executeAndAwait {
+            val savedBankAccount = bankAccountRepository.save(BankAccountEntity.of(bankAccount))
+            bankAccount.id = savedBankAccount.id.toString()
+            log.info("saved bank account: $savedBankAccount")
 
-        val bankAccountCreatedEvent = BankAccountCreatedEvent(savedBankAccount.toBankAccount())
-        val eventData = objectMapper.writeValueAsBytes(bankAccountCreatedEvent)
-        val outboxEvent = OutboxEvent(
-            null,
-            savedBankAccount.id,
-            BankAccountCreatedEvent.BANK_ACCOUNT_CREATED_EVENT,
-            eventData,
-            savedBankAccount.version.toLong(),
-            LocalDateTime.now()
-        )
-        val savedEvent = outboxRepository.save(outboxEvent)
+            val bankAccountCreatedEvent = BankAccountCreatedEvent(savedBankAccount.toBankAccount())
+            val eventData = objectMapper.writeValueAsBytes(bankAccountCreatedEvent)
+            val outboxEvent = OutboxEvent(
+                null,
+                savedBankAccount.id,
+                BankAccountCreatedEvent.BANK_ACCOUNT_CREATED_EVENT,
+                eventData,
+                savedBankAccount.version.toLong(),
+                LocalDateTime.now()
+            )
+            val savedEvent = outboxRepository.save(outboxEvent)
+            savedEvent
+        }
+
         log.info("saved outbox event: $savedEvent")
 
         log.info("publishing outbox event: $savedEvent")
-        savedBankAccount.toBankAccount()
+        publish(savedEvent)
+        bankAccount
     }
 
 
@@ -65,7 +73,14 @@ class BankAccountCommandServiceImpl(
         val balanceDepositedEvent = BalanceDepositedEvent(savedBankAccount.id.toString(), command.amount)
         val eventData = objectMapper.writeValueAsBytes(balanceDepositedEvent)
         val outboxEvent =
-            OutboxEvent(null, savedBankAccount.id, BalanceDepositedEvent.BALANCE_DEPOSITED_EVENT, eventData, savedBankAccount.version.toLong(), LocalDateTime.now())
+            OutboxEvent(
+                null,
+                savedBankAccount.id,
+                BalanceDepositedEvent.BALANCE_DEPOSITED_EVENT,
+                eventData,
+                savedBankAccount.version.toLong(),
+                LocalDateTime.now()
+            )
         val savedEvent = outboxRepository.save(outboxEvent)
         log.info("saved outbox event: $savedEvent")
 
@@ -88,7 +103,14 @@ class BankAccountCommandServiceImpl(
         val balanceWithdrawnEvent = BalanceWithdrawnEvent(savedBankAccount.id.toString(), command.amount)
         val eventData = objectMapper.writeValueAsBytes(balanceWithdrawnEvent)
         val outboxEvent =
-            OutboxEvent(null, savedBankAccount.id, BalanceWithdrawnEvent.BALANCE_WITHDRAWN_EVENT, eventData, savedBankAccount.version.toLong(), LocalDateTime.now())
+            OutboxEvent(
+                null,
+                savedBankAccount.id,
+                BalanceWithdrawnEvent.BALANCE_WITHDRAWN_EVENT,
+                eventData,
+                savedBankAccount.version.toLong(),
+                LocalDateTime.now()
+            )
         val savedEvent = outboxRepository.save(outboxEvent)
         log.info("saved outbox event: $savedEvent")
 
@@ -112,6 +134,14 @@ class BankAccountCommandServiceImpl(
 
         log.info("publishing outbox event: $savedEvent")
         savedBankAccount.toBankAccount()
+    }
+
+
+    private suspend fun publish(event: OutboxEvent) = withContext(Dispatchers.IO) {
+        txOp.executeAndAwait {
+            log.info("publishing event: $event")
+//            outboxRepository.deleteById(event.eventId!!)
+        }
     }
 
     companion object {

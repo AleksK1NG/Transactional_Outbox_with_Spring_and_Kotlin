@@ -5,7 +5,7 @@ import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.util.*
 
-class BankAccount(val id: String? = null) {
+class BankAccount(var id: String? = null) {
     var email: String? = null
     var address: String? = null
     var firstName: String? = null
