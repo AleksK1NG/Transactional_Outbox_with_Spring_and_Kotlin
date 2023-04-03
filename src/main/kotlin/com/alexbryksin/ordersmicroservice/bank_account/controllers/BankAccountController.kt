@@ -28,8 +28,6 @@ class BankAccountController(
     suspend fun depositBalance(@PathVariable id: String, @RequestBody command: DepositBalanceCommand) = coroutineScope {
         ResponseEntity.status(200).body(bankAccountCommandService.on(command.copy(id = id)))
             .also { log.info("PUT deposit balance response: $it") }
-//        ResponseEntity.status(HttpStatus.OK).body(BankAccountSuccessResponse.of(bankAccountCommandService.on(command.copy(id = id))))
-//            .also { log.info("PUT deposit balance response: $it") }
     }
 
     @PutMapping(path = ["/withdraw/{id}"])
