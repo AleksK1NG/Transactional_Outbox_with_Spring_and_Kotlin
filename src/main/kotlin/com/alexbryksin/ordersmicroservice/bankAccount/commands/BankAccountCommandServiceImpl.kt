@@ -147,12 +147,9 @@ class BankAccountCommandServiceImpl(
 
     private suspend fun publish(event: OutboxEvent) = withContext(Dispatchers.IO) {
         try {
-            txOp.executeAndAwait {
-                log.info("publishing event: $event")
-                eventsPublisher.publish(getTopicName(event.eventType), event)
-                outboxRepository.deleteById(event.eventId!!)
-                log.info("event published and deleted: $event")
-            }
+            log.info("publishing event: $event")
+            outboxRepository.deleteOutboxRecordByID(event.eventId!!) { eventsPublisher.publish(getTopicName(event.eventType), event) }
+            log.info("event published and deleted: $event")
         } catch (e: Exception) {
             log.error("exception while publishing outbox event: ${e.localizedMessage}")
         }
