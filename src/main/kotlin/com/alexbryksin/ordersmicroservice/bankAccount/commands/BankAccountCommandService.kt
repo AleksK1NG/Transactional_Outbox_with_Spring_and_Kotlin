@@ -8,4 +8,6 @@ interface BankAccountCommandService {
     suspend fun on(command: DepositBalanceCommand): BankAccount
     suspend fun on(command: WithdrawAmountCommand): BankAccount
     suspend fun on(command: ChangeEmailCommand): BankAccount
+
+    suspend fun deleteOutboxRecordsWithLock()
 }
