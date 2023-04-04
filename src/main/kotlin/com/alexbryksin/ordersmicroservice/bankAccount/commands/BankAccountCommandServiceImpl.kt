@@ -9,6 +9,7 @@ import com.alexbryksin.ordersmicroservice.bankAccount.events.BalanceWithdrawnEve
 import com.alexbryksin.ordersmicroservice.bankAccount.events.BankAccountCreatedEvent
 import com.alexbryksin.ordersmicroservice.bankAccount.events.EmailChangedEvent
 import com.alexbryksin.ordersmicroservice.bankAccount.exceptions.BankAccountNotFoundException
+import com.alexbryksin.ordersmicroservice.bankAccount.exceptions.UnknownEventTypeException
 import com.alexbryksin.ordersmicroservice.bankAccount.repository.BankAccountRepository
 import com.alexbryksin.ordersmicroservice.bankAccount.repository.OutboxRepository
 import com.alexbryksin.ordersmicroservice.configuration.KafkaTopicsConfiguration
@@ -35,21 +36,8 @@ class BankAccountCommandServiceImpl(
     private val kafkaTopicsConfiguration: KafkaTopicsConfiguration
 ) : BankAccountCommandService {
 
-
-    private fun createNewOutboxEvent(aggregateId: UUID?, version: Long, data: Any): OutboxEvent {
-        val eventData = objectMapper.writeValueAsBytes(data)
-        return OutboxEvent(
-            null,
-            aggregateId,
-            BankAccountCreatedEvent.BANK_ACCOUNT_CREATED_EVENT,
-            eventData,
-            version,
-            LocalDateTime.now()
-        )
-    }
-
     override suspend fun on(command: CreateBankAccountCommand): BankAccount = withContext(Dispatchers.IO) {
-        val result = txOp.executeAndAwait {
+        val resultPair = txOp.executeAndAwait {
             val bankAccount = BankAccount.of(command)
 
             val savedBankAccount = bankAccountRepository.save(BankAccountEntity.of(bankAccount))
@@ -63,12 +51,12 @@ class BankAccountCommandServiceImpl(
             Pair(savedBankAccount, savedEvent)
         }
 
-        publish(result.second)
-        result.first.toBankAccount()
+        publish(resultPair.second)
+        resultPair.first.toBankAccount()
     }
 
-    override suspend fun on(command: DepositBalanceCommand): Long = withContext(Dispatchers.IO) {
-        val savedEvent = txOp.executeAndAwait {
+    override suspend fun on(command: DepositBalanceCommand): BankAccount = withContext(Dispatchers.IO) {
+        val resultPair = txOp.executeAndAwait {
             val bankAccountEntity = bankAccountRepository.findById(UUID.fromString(command.id))
                 ?: throw BankAccountNotFoundException(command.id)
 
@@ -80,16 +68,15 @@ class BankAccountCommandServiceImpl(
             val outboxEvent = createNewOutboxEvent(savedBankAccount.id, savedBankAccount.version.toLong(), balanceDepositedEvent)
             val savedEvent = outboxRepository.save(outboxEvent)
             log.info("saved outbox event: $savedEvent")
-            savedEvent
+            Pair(savedBankAccount, savedEvent)
         }
 
-        log.info("publishing outbox event: $savedEvent")
-        publish(savedEvent)
-        1
+        publish(resultPair.second)
+        resultPair.first.toBankAccount()
     }
 
     override suspend fun on(command: WithdrawAmountCommand): BankAccount = withContext(Dispatchers.IO) {
-        val result = txOp.executeAndAwait {
+        val resultPair = txOp.executeAndAwait {
             val bankAccountEntity =
                 bankAccountRepository.findById(UUID.fromString(command.id)) ?: throw BankAccountNotFoundException(command.id)
             val bankAccount = bankAccountEntity.toBankAccount().withdrawBalance(command.amount)
@@ -103,22 +90,20 @@ class BankAccountCommandServiceImpl(
             Pair(savedBankAccount, savedEvent)
         }
 
-        publish(result.second)
-        result.first.toBankAccount()
+        publish(resultPair.second)
+        resultPair.first.toBankAccount()
     }
 
     @Transactional(timeout = 3)
     override suspend fun on(command: ChangeEmailCommand): BankAccount = withContext(Dispatchers.IO) {
-        val result = txOp.executeAndAwait {
+        val resultPair = txOp.executeAndAwait {
             val bankAccountEntity = bankAccountRepository.findById(UUID.fromString(command.id))
                 ?: throw BankAccountNotFoundException(command.id)
             bankAccountEntity.email = command.newEmail
             val savedBankAccount = bankAccountRepository.save(bankAccountEntity)
 
             val emailChangedEvent = EmailChangedEvent(savedBankAccount.id.toString(), command.newEmail)
-            val eventData = objectMapper.writeValueAsBytes(emailChangedEvent)
-            val outboxEvent =
-                OutboxEvent(null, savedBankAccount.id, EmailChangedEvent.EMAIL_CHANGED_EVENT, eventData, savedBankAccount.version.toLong(), LocalDateTime.now())
+            val outboxEvent =createNewOutboxEvent(savedBankAccount.id, savedBankAccount.version.toLong(), emailChangedEvent)
             val savedEvent = outboxRepository.save(outboxEvent)
             log.info("saved outbox event: $savedEvent")
 
@@ -126,8 +111,8 @@ class BankAccountCommandServiceImpl(
             Pair(savedBankAccount, savedEvent)
         }
 
-        publish(result.second)
-        result.first.toBankAccount()
+        publish(resultPair.second)
+        resultPair.first.toBankAccount()
     }
 
 
@@ -146,8 +131,18 @@ class BankAccountCommandServiceImpl(
         BalanceDepositedEvent.BALANCE_DEPOSITED_EVENT -> kafkaTopicsConfiguration.balanceDeposited?.name
         BalanceWithdrawnEvent.BALANCE_WITHDRAWN_EVENT -> kafkaTopicsConfiguration.balanceWithdrawn?.name
         EmailChangedEvent.EMAIL_CHANGED_EVENT -> kafkaTopicsConfiguration.emailChanged?.name
-        else -> throw RuntimeException("unknown event type: $eventType")
+        else -> throw UnknownEventTypeException(eventType)
     }
+
+    private fun createNewOutboxEvent(aggregateId: UUID?, version: Long, data: Any): OutboxEvent = OutboxEvent(
+        eventId = null,
+        aggregateId = aggregateId,
+        eventType = BankAccountCreatedEvent.BANK_ACCOUNT_CREATED_EVENT,
+        data = objectMapper.writeValueAsBytes(data),
+        version = version,
+        timestamp = LocalDateTime.now()
+    )
+
 
     companion object {
         private val log = LoggerFactory.getLogger(BankAccountCommandServiceImpl::class.java)

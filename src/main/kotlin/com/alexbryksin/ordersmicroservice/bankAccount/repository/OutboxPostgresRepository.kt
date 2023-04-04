@@ -7,4 +7,5 @@ import java.util.*
 @Repository
 interface OutboxPostgresRepository {
     suspend fun deleteOutboxRecordByID(id: UUID, callback: suspend () -> Unit): Long
+    suspend fun deleteOutboxRecordsWithLock(callback: suspend () -> Unit)
 }
