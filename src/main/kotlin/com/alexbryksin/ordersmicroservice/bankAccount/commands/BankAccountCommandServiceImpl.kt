@@ -103,7 +103,7 @@ class BankAccountCommandServiceImpl(
             val savedBankAccount = bankAccountRepository.save(bankAccountEntity)
 
             val emailChangedEvent = EmailChangedEvent(savedBankAccount.id.toString(), command.newEmail)
-            val outboxEvent =createNewOutboxEvent(savedBankAccount.id, savedBankAccount.version.toLong(), emailChangedEvent)
+            val outboxEvent = createNewOutboxEvent(savedBankAccount.id, savedBankAccount.version.toLong(), emailChangedEvent)
             val savedEvent = outboxRepository.save(outboxEvent)
             log.info("saved outbox event: $savedEvent")
 
@@ -114,6 +114,10 @@ class BankAccountCommandServiceImpl(
         publish(resultPair.second)
         resultPair.first.toBankAccount()
     }
+
+
+    override suspend fun deleteOutboxRecordsWithLock() =
+        outboxRepository.deleteOutboxRecordsWithLock { eventsPublisher.publish(getTopicName(it.eventType), it) }
 
 
     private suspend fun publish(event: OutboxEvent) = withContext(Dispatchers.IO) {

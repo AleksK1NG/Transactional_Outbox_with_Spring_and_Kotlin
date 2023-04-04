@@ -42,24 +42,32 @@ class OutboxPostgresRepositoryImpl(
         }
     }
 
-    override suspend fun deleteOutboxRecordsWithLock(callback: suspend () -> Unit) = withContext(Dispatchers.IO) {
+    override suspend fun deleteOutboxRecordsWithLock(callback: suspend (outboxEvent: OutboxEvent) -> Unit) = withContext(Dispatchers.IO) {
         withTimeout(3000) {
             txOp.executeAndAwait {
+                log.info("starting delete outbox events")
                 dbClient.sql("SELECT * FROM microservices.bank_accounts_outbox ORDER BY timestamp ASC LIMIT 10 FOR UPDATE SKIP LOCKED")
                     .map { row, _ ->
-                        OutboxEvent(
-                            eventId = row["event_id", UUID::class.java],
-                            aggregateId = row["aggregate_id", UUID::class.java],
-                            eventType = row["event_type", String::class.java],
-                            data = row["data", ByteArray::class.java] ?: byteArrayOf(),
-                            version = row["version", Long::class.java] ?: 0,
-                            timestamp = row["timestamp", LocalDateTime::class.java],
-                        )
+                        try {
+                            OutboxEvent(
+                                eventId = row["event_id", UUID::class.java],
+                                aggregateId = row["aggregate_id", UUID::class.java],
+                                eventType = row["event_type", String::class.java],
+                                data = row["data", ByteArray::class.java] ?: byteArrayOf(),
+                                version = row["version", String::class.java]?.toLong() ?: 0,
+                                timestamp = row["timestamp", LocalDateTime::class.java],
+                            )
+                        } catch (e: Exception) {
+                            log.error(e.localizedMessage)
+                            throw e
+                        }
                     }
                     .flow()
                     .collectIndexed { _, outboxEvent ->
                         log.info("deleting outboxEvent with id: ${outboxEvent.eventId}")
-                        callback()
+
+                        callback(outboxEvent)
+
                         dbClient.sql("DELETE FROM microservices.bank_accounts_outbox WHERE event_id = :eventId")
                             .bind("eventId", outboxEvent.eventId!!)
                             .fetch()
@@ -67,6 +75,7 @@ class OutboxPostgresRepositoryImpl(
                             .awaitSingle()
                         log.info("outboxEvent with id: ${outboxEvent.eventId} published and deleted")
                     }
+                log.info("complete delete outbox events")
             }
         }
     }
