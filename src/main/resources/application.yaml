@@ -30,6 +30,9 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
 
+schedulers:
+  outbox:
+    enable: false
 
 management:
   tracing:
