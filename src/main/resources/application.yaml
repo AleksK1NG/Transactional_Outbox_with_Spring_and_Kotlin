@@ -62,6 +62,10 @@ topics:
     name: bank-account-created
     partitions: 3
     replication: 1
+  retryTopic:
+    name: retry-topic
+    partitions: 3
+    replication: 1
   balanceDeposited:
     name: balance-deposited
     partitions: 3
