@@ -14,7 +14,7 @@ import com.alexbryksin.ordersmicroservice.bankAccount.repository.BankAccountRepo
 import com.alexbryksin.ordersmicroservice.bankAccount.repository.OutboxRepository
 import com.alexbryksin.ordersmicroservice.configuration.KafkaTopicsConfiguration
 import com.alexbryksin.ordersmicroservice.eventPublisher.EventsPublisher
-import com.fasterxml.jackson.databind.ObjectMapper
+import com.alexbryksin.ordersmicroservice.utils.serializer.Serializer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
@@ -30,10 +30,10 @@ import java.util.*
 class BankAccountCommandServiceImpl(
     private val bankAccountRepository: BankAccountRepository,
     private val outboxRepository: OutboxRepository,
-    private val objectMapper: ObjectMapper,
     private val txOp: TransactionalOperator,
     private val eventsPublisher: EventsPublisher,
-    private val kafkaTopicsConfiguration: KafkaTopicsConfiguration
+    private val kafkaTopicsConfiguration: KafkaTopicsConfiguration,
+    private val serializer: Serializer
 ) : BankAccountCommandService {
 
     override suspend fun on(command: CreateBankAccountCommand): BankAccount = withContext(Dispatchers.IO) {
@@ -142,7 +142,7 @@ class BankAccountCommandServiceImpl(
         eventId = null,
         aggregateId = aggregateId,
         eventType = BankAccountCreatedEvent.BANK_ACCOUNT_CREATED_EVENT,
-        data = objectMapper.writeValueAsBytes(data),
+        data = serializer.serializeToBytes(data),
         version = version,
         timestamp = LocalDateTime.now()
     )
