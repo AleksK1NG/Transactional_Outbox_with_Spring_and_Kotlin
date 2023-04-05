@@ -1,7 +1,9 @@
 package com.alexbryksin.ordersmicroservice.bankAccount.consumer
 
+import com.alexbryksin.ordersmicroservice.bankAccount.domain.OutboxEvent
 import com.alexbryksin.ordersmicroservice.configuration.KafkaTopicsConfiguration
-import com.fasterxml.jackson.databind.ObjectMapper
+import com.alexbryksin.ordersmicroservice.utils.serializer.SerializationException
+import com.alexbryksin.ordersmicroservice.utils.serializer.Serializer
 import kotlinx.coroutines.runBlocking
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.slf4j.LoggerFactory
@@ -12,8 +14,8 @@ import org.springframework.stereotype.Component
 
 @Component
 class OutboxConsumer(
-    private val objectMapper: ObjectMapper,
-    private val kafkaTopicsConfiguration: KafkaTopicsConfiguration
+    private val kafkaTopicsConfiguration: KafkaTopicsConfiguration,
+    private val serializer: Serializer
 ) {
 
     @KafkaListener(
@@ -22,9 +24,19 @@ class OutboxConsumer(
 //        errorHandler = "consumerExceptionHandler"
     )
     fun consume(ack: Acknowledgment, consumerRecord: ConsumerRecord<String, ByteArray>) = runBlocking {
-        log.info("process record: ${String(consumerRecord.value())}")
-        ack.acknowledge()
-        log.info("committed record topic: ${consumerRecord.topic()} offset: ${consumerRecord.offset()} partition: ${consumerRecord.partition()}")
+        try {
+            log.info("process record: ${String(consumerRecord.value())}")
+            val outboxEvent = serializer.deserialize(consumerRecord.value(), OutboxEvent::class.java)
+            log.info("serialized outbox event: $outboxEvent")
+            ack.acknowledge()
+            log.info("committed record topic: ${consumerRecord.topic()} offset: ${consumerRecord.offset()} partition: ${consumerRecord.partition()}")
+        } catch (ex: Exception) {
+            if (ex is SerializationException) {
+                log.error("commit not serializable record: ${String(consumerRecord.value())}")
+                ack.acknowledge()
+            }
+            log.error("exception while processing record: ${ex.localizedMessage}")
+        }
     }
 
 
