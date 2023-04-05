@@ -10,12 +10,13 @@ import reactor.util.Loggers
 class KafkaTopicsConfiguration {
 
     var bankAccountCreated: TopicConfiguration? = null
+    var retryTopic: TopicConfiguration? = null
     var balanceDeposited: TopicConfiguration? = null
     var balanceWithdrawn: TopicConfiguration? = null
     var emailChanged: TopicConfiguration? = null
 
 
-    fun getTopics() = listOf(bankAccountCreated, balanceDeposited, balanceWithdrawn, emailChanged)
+    fun getTopics() = listOf(bankAccountCreated, balanceDeposited, balanceWithdrawn, emailChanged, retryTopic)
 
     @PostConstruct
     fun logConfigProperties() {

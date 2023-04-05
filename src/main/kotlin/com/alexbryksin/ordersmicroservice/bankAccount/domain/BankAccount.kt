@@ -50,7 +50,6 @@ fun BankAccount.Companion.of(createBankAccountCommand: CreateBankAccountCommand)
         phone = createBankAccountCommand.phone
         balance = createBankAccountCommand.balance
         currency = createBankAccountCommand.currency
-//        version = 1
     }
 }
 
