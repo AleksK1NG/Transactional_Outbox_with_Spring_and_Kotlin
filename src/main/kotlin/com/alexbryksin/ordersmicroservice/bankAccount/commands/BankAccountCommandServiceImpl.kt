@@ -45,7 +45,12 @@ class BankAccountCommandServiceImpl(
             log.info("saved bank account: $savedBankAccount")
 
             val bankAccountCreatedEvent = BankAccountCreatedEvent(savedBankAccount.toBankAccount())
-            val outboxEvent = createNewOutboxEvent(savedBankAccount.id, savedBankAccount.version.toLong(), bankAccountCreatedEvent)
+            val outboxEvent = createNewOutboxEvent(
+                savedBankAccount.id,
+                savedBankAccount.version.toLong(),
+                bankAccountCreatedEvent,
+                BankAccountCreatedEvent.BANK_ACCOUNT_CREATED_EVENT,
+            )
             val savedEvent = outboxRepository.save(outboxEvent)
             log.info("saved outbox event: $savedEvent")
             Pair(savedBankAccount, savedEvent)
@@ -65,7 +70,12 @@ class BankAccountCommandServiceImpl(
             log.info("saved bank account: $savedBankAccount")
 
             val balanceDepositedEvent = BalanceDepositedEvent(savedBankAccount.id.toString(), command.amount)
-            val outboxEvent = createNewOutboxEvent(savedBankAccount.id, savedBankAccount.version.toLong(), balanceDepositedEvent)
+            val outboxEvent = createNewOutboxEvent(
+                savedBankAccount.id,
+                savedBankAccount.version.toLong(),
+                balanceDepositedEvent,
+                BalanceDepositedEvent.BALANCE_DEPOSITED_EVENT,
+            )
             val savedEvent = outboxRepository.save(outboxEvent)
             log.info("saved outbox event: $savedEvent")
             Pair(savedBankAccount, savedEvent)
@@ -84,7 +94,12 @@ class BankAccountCommandServiceImpl(
             log.info("saved bank account: $savedBankAccount")
 
             val balanceWithdrawnEvent = BalanceWithdrawnEvent(savedBankAccount.id.toString(), command.amount)
-            val outboxEvent = createNewOutboxEvent(savedBankAccount.id, savedBankAccount.version.toLong(), balanceWithdrawnEvent)
+            val outboxEvent = createNewOutboxEvent(
+                savedBankAccount.id,
+                savedBankAccount.version.toLong(),
+                balanceWithdrawnEvent,
+                BalanceWithdrawnEvent.BALANCE_WITHDRAWN_EVENT,
+            )
             val savedEvent = outboxRepository.save(outboxEvent)
             log.info("saved outbox event: $savedEvent")
             Pair(savedBankAccount, savedEvent)
@@ -103,7 +118,12 @@ class BankAccountCommandServiceImpl(
             val savedBankAccount = bankAccountRepository.save(bankAccountEntity)
 
             val emailChangedEvent = EmailChangedEvent(savedBankAccount.id.toString(), command.newEmail)
-            val outboxEvent = createNewOutboxEvent(savedBankAccount.id, savedBankAccount.version.toLong(), emailChangedEvent)
+            val outboxEvent = createNewOutboxEvent(
+                savedBankAccount.id,
+                savedBankAccount.version.toLong(),
+                emailChangedEvent,
+                EmailChangedEvent.EMAIL_CHANGED_EVENT,
+            )
             val savedEvent = outboxRepository.save(outboxEvent)
             log.info("saved outbox event: $savedEvent")
 
@@ -138,10 +158,10 @@ class BankAccountCommandServiceImpl(
         else -> throw UnknownEventTypeException(eventType)
     }
 
-    private fun createNewOutboxEvent(aggregateId: UUID?, version: Long, data: Any): OutboxEvent = OutboxEvent(
+    private fun createNewOutboxEvent(aggregateId: UUID?, version: Long, data: Any, eventType: String): OutboxEvent = OutboxEvent(
         eventId = null,
         aggregateId = aggregateId,
-        eventType = BankAccountCreatedEvent.BANK_ACCOUNT_CREATED_EVENT,
+        eventType = eventType,
         data = serializer.serializeToBytes(data),
         version = version,
         timestamp = LocalDateTime.now()

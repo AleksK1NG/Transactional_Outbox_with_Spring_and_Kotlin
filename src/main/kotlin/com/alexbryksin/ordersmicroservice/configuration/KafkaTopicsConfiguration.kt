@@ -14,9 +14,17 @@ class KafkaTopicsConfiguration {
     var balanceDeposited: TopicConfiguration? = null
     var balanceWithdrawn: TopicConfiguration? = null
     var emailChanged: TopicConfiguration? = null
+    var deadLetterQueue: TopicConfiguration? = null
 
 
-    fun getTopics() = listOf(bankAccountCreated, balanceDeposited, balanceWithdrawn, emailChanged, retryTopic)
+    fun getTopics() = listOf(
+        bankAccountCreated,
+        balanceDeposited,
+        balanceWithdrawn,
+        emailChanged,
+        retryTopic,
+        deadLetterQueue,
+    )
 
     @PostConstruct
     fun logConfigProperties() {

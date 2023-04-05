@@ -1,6 +1,7 @@
 package com.alexbryksin.ordersmicroservice.bankAccount.consumer
 
 import com.alexbryksin.ordersmicroservice.bankAccount.domain.OutboxEvent
+import com.alexbryksin.ordersmicroservice.bankAccount.events.BalanceDepositedEvent
 import com.alexbryksin.ordersmicroservice.configuration.KafkaTopicsConfiguration
 import com.alexbryksin.ordersmicroservice.eventPublisher.EventsPublisher
 import com.alexbryksin.ordersmicroservice.utils.serializer.SerializationException
@@ -30,11 +31,15 @@ class OutboxConsumer(
         topics = ["\${topics.bankAccountCreated.name}", "\${topics.balanceDeposited.name}", "\${topics.balanceWithdrawn.name}", "\${topics.emailChanged.name}"],
 //        errorHandler = "consumerExceptionHandler"
     )
-    fun consume(ack: Acknowledgment, consumerRecord: ConsumerRecord<String, ByteArray>) = runBlocking {
+    fun consume(ack: Acknowledgment, consumerRecord: ConsumerRecord<String, ByteArray>): Unit = runBlocking {
         try {
             log.info("process record: ${String(consumerRecord.value())}")
             val outboxEvent = serializer.deserialize(consumerRecord.value(), OutboxEvent::class.java)
             log.info("serialized outbox event: $outboxEvent")
+            if (outboxEvent.eventType == BalanceDepositedEvent.BALANCE_DEPOSITED_EVENT) {
+                val balanceDepositedEvent = serializer.deserialize(outboxEvent.data, BalanceDepositedEvent::class.java)
+                log.info("deserialized balance deposited event: $balanceDepositedEvent")
+            }
             ack.acknowledge()
             log.info("committed record topic: ${consumerRecord.topic()} offset: ${consumerRecord.offset()} partition: ${consumerRecord.partition()}")
         } catch (ex: Exception) {
@@ -54,7 +59,7 @@ class OutboxConsumer(
         topics = ["\${topics.retryTopic.name}"],
 //        errorHandler = "consumerExceptionHandler"
     )
-    fun consumeRetry(ack: Acknowledgment, consumerRecord: ConsumerRecord<String, ByteArray>) = runBlocking {
+    fun consumeRetry(ack: Acknowledgment, consumerRecord: ConsumerRecord<String, ByteArray>): Unit = runBlocking {
         try {
             log.info("process retry record: ${String(consumerRecord.value())}")
 
@@ -71,7 +76,10 @@ class OutboxConsumer(
 
             val retryCount = getHeader("retryCount", consumerRecord.headers()).toInt()
             if (retryCount > 5) {
-                log.error("send to dlq: ${consumerRecord.topic()}")
+                log.error("retry count exceed, send record to dlq: ${consumerRecord.topic()}")
+                mono { publishRetryRecord(kafkaTopicsConfiguration.deadLetterQueue?.name!!, consumerRecord, retryCount + 1) }
+                    .retryWhen(Retry.backoff(5, Duration.ofMillis(3000)).filter { it is SerializationException })
+                    .awaitSingle()
                 ack.acknowledge()
                 return@runBlocking
             }
