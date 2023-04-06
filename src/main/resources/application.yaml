@@ -32,7 +32,7 @@ springdoc:
 
 schedulers:
   outbox:
-    enable: true
+    enable: false
 
 management:
   tracing:
