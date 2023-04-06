@@ -27,6 +27,13 @@ class KafkaEventsPublisher(
         log.info("publish sendResult: $result")
     }
 
+    override suspend fun publishRetryRecord(topic: String?, data: ByteArray, headers: Map<String, ByteArray>) {
+        val msg = ProducerRecord<String, ByteArray>(topic, data)
+        headers.forEach { (key, value) -> msg.headers().add(key, value) }
+        val result = kafkaTemplate.send(msg).await()
+        log.info("publish sendResult: $result")
+    }
+
     companion object {
         private val log = LoggerFactory.getLogger(KafkaEventsPublisher::class.java)
     }
