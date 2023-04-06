@@ -1,8 +1,10 @@
 package com.alexbryksin.ordersmicroservice.bankAccount.domain
 
+import io.r2dbc.spi.Row
 import org.springframework.data.annotation.Id
 import org.springframework.data.relational.core.mapping.Column
 import org.springframework.data.relational.core.mapping.Table
+import java.math.BigInteger
 import java.time.LocalDateTime
 import java.util.*
 
@@ -32,6 +34,16 @@ data class OutboxEvent(
         result = 31 * result + (aggregateId?.hashCode() ?: 0)
         return result
     }
+
+    companion object
 }
 
 
+fun OutboxEvent.Companion.fromRow(row: Row) = OutboxEvent(
+    eventId = row["event_id", UUID::class.java],
+    aggregateId = row["aggregate_id", UUID::class.java],
+    eventType = row["event_type", String::class.java],
+    data = row["data", ByteArray::class.java] ?: byteArrayOf(),
+    version = row["version", BigInteger::class.java]?.toLong() ?: 0,
+    timestamp = row["timestamp", LocalDateTime::class.java],
+)
