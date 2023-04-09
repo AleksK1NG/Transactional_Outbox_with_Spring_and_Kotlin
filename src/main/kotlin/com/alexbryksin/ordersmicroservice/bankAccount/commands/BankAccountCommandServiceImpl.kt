@@ -69,7 +69,7 @@ class BankAccountCommandServiceImpl(
             val savedBankAccount = bankAccountRepository.save(BankAccountEntity.of(bankAccount))
             log.info("saved bank account: $savedBankAccount")
 
-            val balanceDepositedEvent = BalanceDepositedEvent(savedBankAccount.id.toString(), command.amount)
+            val balanceDepositedEvent = BalanceDepositedEvent(savedBankAccount.id.toString(), savedBankAccount.version, command.amount)
             val outboxEvent = createNewOutboxEvent(
                 savedBankAccount.id,
                 savedBankAccount.version.toLong(),
@@ -93,7 +93,7 @@ class BankAccountCommandServiceImpl(
             val savedBankAccount = bankAccountRepository.save(BankAccountEntity.of(bankAccount))
             log.info("saved bank account: $savedBankAccount")
 
-            val balanceWithdrawnEvent = BalanceWithdrawnEvent(savedBankAccount.id.toString(), command.amount)
+            val balanceWithdrawnEvent = BalanceWithdrawnEvent(savedBankAccount.id.toString(), savedBankAccount.version, command.amount)
             val outboxEvent = createNewOutboxEvent(
                 savedBankAccount.id,
                 savedBankAccount.version.toLong(),
@@ -117,7 +117,7 @@ class BankAccountCommandServiceImpl(
             bankAccountEntity.email = command.newEmail
             val savedBankAccount = bankAccountRepository.save(bankAccountEntity)
 
-            val emailChangedEvent = EmailChangedEvent(savedBankAccount.id.toString(), command.newEmail)
+            val emailChangedEvent = EmailChangedEvent(savedBankAccount.id.toString(), savedBankAccount.version, command.newEmail)
             val outboxEvent = createNewOutboxEvent(
                 savedBankAccount.id,
                 savedBankAccount.version.toLong(),
