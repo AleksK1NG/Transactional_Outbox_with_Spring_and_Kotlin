@@ -4,6 +4,7 @@ import com.alexbryksin.ordersmicroservice.bankAccount.domain.OutboxEvent
 import com.alexbryksin.ordersmicroservice.bankAccount.events.BalanceDepositedEvent
 import com.alexbryksin.ordersmicroservice.configuration.KafkaTopicsConfiguration
 import com.alexbryksin.ordersmicroservice.eventPublisher.EventsPublisher
+import com.alexbryksin.ordersmicroservice.utils.kafkaUtils.getHeader
 import com.alexbryksin.ordersmicroservice.utils.serializer.SerializationException
 import com.alexbryksin.ordersmicroservice.utils.serializer.Serializer
 import kotlinx.coroutines.reactor.awaitSingle
@@ -32,7 +33,7 @@ class OutboxConsumer(
         topics = ["\${topics.bankAccountCreated.name}", "\${topics.balanceDeposited.name}", "\${topics.balanceWithdrawn.name}", "\${topics.emailChanged.name}"],
 //        errorHandler = "consumerExceptionHandler"
     )
-    fun consume(ack: Acknowledgment, consumerRecord: ConsumerRecord<String, ByteArray>): Unit = runBlocking {
+    fun process(ack: Acknowledgment, consumerRecord: ConsumerRecord<String, ByteArray>): Unit = runBlocking {
         try {
             log.info("process record: ${String(consumerRecord.value())}")
             val outboxEvent = serializer.deserialize(consumerRecord.value(), OutboxEvent::class.java)
@@ -41,19 +42,23 @@ class OutboxConsumer(
                 val balanceDepositedEvent = serializer.deserialize(outboxEvent.data, BalanceDepositedEvent::class.java)
                 log.info("deserialized balance deposited event: $balanceDepositedEvent")
 
+//                outboxEvent.aggregateId -> load aggregate
+//                outboxEvent.version -> aggregate.version+1 == outboxEvent.version ? apply changes : publish retry
                 if (balanceDepositedEvent.amount == BigDecimal.valueOf(10)) throw RuntimeException("exception amount")
             }
+
             ack.acknowledge()
             log.info("committed record topic: ${consumerRecord.topic()} offset: ${consumerRecord.offset()} partition: ${consumerRecord.partition()}")
         } catch (ex: Exception) {
             if (ex is SerializationException) {
                 log.error("commit not serializable record: ${String(consumerRecord.value())}")
                 ack.acknowledge()
+                return@runBlocking
             }
 
             log.error("exception while processing record: ${ex.localizedMessage}")
 
-            mono { publishRetryRecord(kafkaTopicsConfiguration.retryTopic?.name!!, consumerRecord.value(), consumerRecord.headers(), 1) }
+            mono { publishRetryRecord(kafkaTopicsConfiguration.retryTopic?.name!!, consumerRecord, 1) }
                 .retryWhen(Retry.backoff(5, Duration.ofMillis(3000)).filter { it is SerializationException })
                 .awaitSingle()
         }
@@ -64,7 +69,7 @@ class OutboxConsumer(
         topics = ["\${topics.retryTopic.name}"],
 //        errorHandler = "consumerExceptionHandler"
     )
-    fun consumeRetry(ack: Acknowledgment, consumerRecord: ConsumerRecord<String, ByteArray>): Unit = runBlocking {
+    fun processRetry(ack: Acknowledgment, consumerRecord: ConsumerRecord<String, ByteArray>): Unit = runBlocking {
         try {
             log.info("process retry record >>>>>>>: ${String(consumerRecord.value())}")
 
@@ -83,7 +88,7 @@ class OutboxConsumer(
             val retryCount = getHeader("retryCount", consumerRecord.headers()).toInt()
             if (retryCount > 5) {
                 log.error("retry count exceed, send record to dlq: ${consumerRecord.topic()}")
-                mono { publishRetryRecord(kafkaTopicsConfiguration.deadLetterQueue?.name!!, consumerRecord.value(), consumerRecord.headers(), retryCount + 1) }
+                mono { publishRetryRecord(kafkaTopicsConfiguration.deadLetterQueue?.name!!, consumerRecord, retryCount + 1) }
                     .retryWhen(Retry.backoff(5, Duration.ofMillis(3000)).filter { it is SerializationException })
                     .awaitSingle()
                 ack.acknowledge()
@@ -91,30 +96,25 @@ class OutboxConsumer(
             }
 
             log.error("exception while processing record: ${ex.localizedMessage}")
-            mono { publishRetryRecord(kafkaTopicsConfiguration.retryTopic?.name!!, consumerRecord.value(), consumerRecord.headers(), retryCount + 1) }
+            mono { publishRetryRecord(kafkaTopicsConfiguration.retryTopic?.name!!, consumerRecord, retryCount + 1) }
                 .retryWhen(Retry.backoff(5, Duration.ofMillis(3000)).filter { it is SerializationException })
                 .awaitSingle()
         }
     }
 
-    fun getHeader(name: String, headers: Headers): String {
-        val headersMap = headers.associateBy({ it.key() }, { it.value() })
-        return String(headersMap[name] ?: byteArrayOf())
+    private suspend fun publishRetryRecord(topic: String, record: ConsumerRecord<String, ByteArray>, retryCount: Int) {
+        log.info("publishing retry record: ${String(record.value())}, retryCount: $retryCount")
+        val headersMap = mutableMapOf("retryCount" to retryCount.toString().toByteArray())
+        record.headers().forEach { headersMap[it.key()] = it.value() }
+        eventsPublisher.publishRetryRecord(topic, record.key(), record.value(), headersMap)
     }
 
-    private suspend fun publishRetryRecord(topic: String, data: ByteArray, headers: Headers, retryCount: Int) {
+
+    private suspend fun publishRetryRecord(topic: String, key: String, data: ByteArray, headers: Headers, retryCount: Int) {
         log.info("publishing retry record: ${String(data)}, retryCount: $retryCount")
         val headersMap = mutableMapOf("retryCount" to retryCount.toString().toByteArray())
         headers.forEach { headersMap[it.key()] = it.value() }
-        eventsPublisher.publishRetryRecord(topic, data, headersMap)
-    }
-
-
-    private suspend fun publishRetryRecord(topic: String, consumerRecord: ConsumerRecord<String, ByteArray>, retryCount: Int) {
-        log.info("publishing retry record: ${String(consumerRecord.value())}, retryCount: $retryCount")
-        val headersMap = mutableMapOf("retryCount" to retryCount.toString().toByteArray())
-        consumerRecord.headers().forEach { headersMap[it.key()] = it.value() }
-        eventsPublisher.publish(topic, consumerRecord.value(), headersMap)
+        eventsPublisher.publishRetryRecord(topic, key, data, headersMap)
     }
 
     companion object {

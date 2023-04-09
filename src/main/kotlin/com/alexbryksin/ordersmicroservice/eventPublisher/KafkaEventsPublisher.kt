@@ -20,6 +20,12 @@ class KafkaEventsPublisher(
         log.info("publish sendResult: $result")
     }
 
+    override suspend fun publish(topic: String?, key: String, data: Any) {
+        val msg = ProducerRecord(topic, key, objectMapper.writeValueAsBytes(data))
+        val result = kafkaTemplate.send(msg).await()
+        log.info("publish sendResult: $result")
+    }
+
     override suspend fun publish(topic: String?, data: Any, headers: Map<String, ByteArray>) {
         val msg = ProducerRecord<String, ByteArray>(topic, objectMapper.writeValueAsBytes(data))
         headers.forEach { (key, value) -> msg.headers().add(key, value) }
@@ -27,8 +33,22 @@ class KafkaEventsPublisher(
         log.info("publish sendResult: $result")
     }
 
+    override suspend fun publish(topic: String?, key: String, data: Any, headers: Map<String, ByteArray>) {
+        val msg = ProducerRecord(topic, key, objectMapper.writeValueAsBytes(data))
+        headers.forEach { (key, value) -> msg.headers().add(key, value) }
+        val result = kafkaTemplate.send(msg).await()
+        log.info("publish sendResult: $result")
+    }
+
     override suspend fun publishRetryRecord(topic: String?, data: ByteArray, headers: Map<String, ByteArray>) {
         val msg = ProducerRecord<String, ByteArray>(topic, data)
+        headers.forEach { (key, value) -> msg.headers().add(key, value) }
+        val result = kafkaTemplate.send(msg).await()
+        log.info("publish sendResult: $result")
+    }
+
+    override suspend fun publishRetryRecord(topic: String?, key: String, data: ByteArray, headers: Map<String, ByteArray>) {
+        val msg = ProducerRecord(topic, key, data)
         headers.forEach { (key, value) -> msg.headers().add(key, value) }
         val result = kafkaTemplate.send(msg).await()
         log.info("publish sendResult: $result")
