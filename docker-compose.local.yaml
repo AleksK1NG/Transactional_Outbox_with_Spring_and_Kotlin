@@ -87,7 +87,7 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: admin
-      MONGODB_DATABASE: products
+      MONGODB_DATABASE: bank_accounts
     networks: [ "microservices" ]
 
 networks:

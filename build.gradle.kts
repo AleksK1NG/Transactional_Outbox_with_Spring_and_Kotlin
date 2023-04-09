@@ -41,6 +41,7 @@ dependencies {
 	implementation("org.springdoc:springdoc-openapi-starter-webflux-ui:2.0.4")
 	implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.20")
 	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:1.6.4")
+	implementation("org.springframework.boot:spring-boot-starter-data-mongodb-reactive")
 }
 
 tasks.withType<KotlinCompile> {
