@@ -10,17 +10,15 @@ import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.util.*
 
-@Table(schema = "microservices", name = "orders")
-data class OrderEntity(
+
+@Table(schema = "microservices", name = "order_items")
+data class OrderItem(
     @Id @Column("id") var id: UUID?,
-    @Column("email") var email: String?,
-    @Column("address") var address: String? = null,
-    @Column("status") var status: OrderStatus = OrderStatus.NEW,
-    @Column("total_sum") var totalSum: BigDecimal = BigDecimal.ZERO,
+    @Column("order_id") var orderId: UUID?,
+    @Column("title") var title: String?,
+    @Column("price") var price: BigDecimal = BigDecimal.ZERO,
+    @Column("quantity") var quantity: Long = 0,
     @Version @Column("version") var version: Int = 0,
     @CreatedDate @Column("created_at") var createdAt: LocalDateTime? = null,
     @LastModifiedDate @Column("updated_at") var updatedAt: LocalDateTime? = null
-) {
-
-    companion object
-}
+)
