@@ -1,13 +1,16 @@
 package com.alexbryksin.ordersmicroservice.order.domain
 
+import java.math.BigDecimal
 import java.time.LocalDateTime
+import java.util.*
 
 class Order(
-    var id: String? = null,
-    var email: String? = null,
+    var id: UUID?,
+    var email: String?,
     var address: String? = null,
-    var status: OrderStatus? = null,
-    var version: Long = 0,
+    var status: OrderStatus = OrderStatus.NEW,
+    var totalSum: BigDecimal = BigDecimal.ZERO,
+    var version: Int = 0,
     var createdAt: LocalDateTime? = null,
     var updatedAt: LocalDateTime? = null
 ) {

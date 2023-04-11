@@ -39,7 +39,7 @@ class BankAccountMongoCoroutineRepositoryImpl(private val mongoTemplate: Reactiv
             .set("phone", bankAccountDocument.phone)
             .set("balance", bankAccountDocument.balance)
             .set("currency", bankAccountDocument.currency)
-            .set("updatedAt", bankAccountDocument.updatedAt)
+//            .set("updatedAt", bankAccountDocument.updatedAt)
             .set("version", bankAccountDocument.version)
 
         val options = FindAndModifyOptions.options().returnNew(true).upsert(false)
