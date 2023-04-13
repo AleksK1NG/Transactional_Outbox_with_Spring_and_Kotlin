@@ -11,8 +11,8 @@ import java.time.LocalDateTime
 import java.util.*
 
 
-@Table(schema = "microservices", name = "order_items")
-data class OrderItem(
+@Table(schema = "microservices", name = "product_items")
+data class ProductItem(
     @Id @Column("id") var id: UUID?,
     @Column("order_id") var orderId: UUID?,
     @Column("title") var title: String?,
