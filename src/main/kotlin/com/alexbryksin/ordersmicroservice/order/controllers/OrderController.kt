@@ -1,7 +1,7 @@
 package com.alexbryksin.ordersmicroservice.order.controllers
 
 import com.alexbryksin.ordersmicroservice.order.domain.OrderEntity
-import com.alexbryksin.ordersmicroservice.order.domain.OrderItem
+import com.alexbryksin.ordersmicroservice.order.domain.ProductItem
 import com.alexbryksin.ordersmicroservice.order.domain.OrderStatus
 import com.alexbryksin.ordersmicroservice.order.service.OrderService
 import kotlinx.coroutines.coroutineScope
@@ -27,6 +27,18 @@ class OrderController(private val orderService: OrderService) {
         ResponseEntity.ok().body(result).also { log.info("getOrderByID: $result") }
     }
 
+    @GetMapping(path = ["/items/{id}"])
+    suspend fun getOrderWithItemsByID(@PathVariable id: String) = coroutineScope {
+        val result = orderService.getOrderWithOrderItemsByID(UUID.fromString(id))
+        ResponseEntity.ok().body(result).also { log.info("getOrderWithItemsByID: $result") }
+    }
+
+    @GetMapping(path = ["/mono/{id}"])
+    suspend fun getOrderWithItemsByIDMono(@PathVariable id: String) = coroutineScope {
+        val result = orderService.getOrderWithOrderItemsByIDMono(UUID.fromString(id))
+        ResponseEntity.ok().body(result).also { log.info("getOrderWithItemsByIDMono: $result") }
+    }
+
     @PostMapping
     suspend fun createOrder() = coroutineScope {
 
@@ -35,11 +47,10 @@ class OrderController(private val orderService: OrderService) {
             email = "email123",
             address = "address1213",
             status = OrderStatus.NEW,
-            totalSum = BigDecimal.ZERO,
         )
 
         val items = sequenceOf(1, 2, 3).map {
-            OrderItem(
+            ProductItem(
                 id = UUID.randomUUID(),
                 orderId = order.id,
                 title = "title $it",
