@@ -13,8 +13,8 @@ import java.util.*
 
 @Table(schema = "microservices", name = "product_items")
 data class ProductItem(
-    @Id @Column("id") var id: UUID?,
-    @Column("order_id") var orderId: UUID?,
+    @Id @Column("id") var id: UUID? = null,
+    @Column("order_id") var orderId: UUID? = null,
     @Column("title") var title: String?,
     @Column("price") var price: BigDecimal = BigDecimal.ZERO,
     @Column("quantity") var quantity: Long = 0,

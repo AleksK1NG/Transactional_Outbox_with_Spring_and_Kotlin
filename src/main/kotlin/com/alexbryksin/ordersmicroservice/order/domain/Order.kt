@@ -4,7 +4,7 @@ import java.time.LocalDateTime
 import java.util.*
 
 class Order(
-    var id: UUID?,
+    var id: UUID? = null,
     var email: String?,
     var address: String? = null,
     var status: OrderStatus = OrderStatus.NEW,
@@ -19,6 +19,29 @@ class Order(
     fun addProductItems(items: List<ProductItem>) = productItems.addAll(items)
 
     fun removeProductItem(id: UUID) = productItems.removeIf { it.id == id }
+
+    fun pay() {
+        if (productItems.isEmpty()) throw RuntimeException("invalid state")
+        status = OrderStatus.PAID
+    }
+
+    fun submit()  {
+        if (productItems.isEmpty()) throw RuntimeException("invalid state")
+        if (status == OrderStatus.COMPLETED || status == OrderStatus.CANCELLED) throw RuntimeException("invalid state")
+        if (status != OrderStatus.PAID) throw RuntimeException("invalid state")
+        status = OrderStatus.SUBMITTED
+    }
+
+    fun cancel() {
+        if (status == OrderStatus.COMPLETED || status == OrderStatus.CANCELLED) throw RuntimeException("invalid state")
+        status = OrderStatus.CANCELLED
+    }
+
+    fun complete() {
+        if (status == OrderStatus.CANCELLED) throw RuntimeException("invalid state")
+        if (status != OrderStatus.SUBMITTED) throw RuntimeException("invalid state")
+        status = OrderStatus.COMPLETED
+    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
