@@ -11,4 +11,6 @@ interface OrderBaseRepository {
     suspend fun getOrderWithProductItemsByID(id: UUID): Order
 
     fun getOrderWithProductItemsByIDMono(id: UUID): Mono<Order>
+
+    suspend fun updateOrderVersion(id: UUID, version: Long): Long
 }

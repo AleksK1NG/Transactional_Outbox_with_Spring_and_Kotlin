@@ -8,11 +8,16 @@ import java.util.*
 
 interface OrderService {
 
-    suspend fun saveOrderWithItems(orderEntity: OrderEntity, orderItems: List<ProductItem>): OrderEntity
-    suspend fun getOrderWithItemsByID(id: UUID): Any
+
+    suspend fun createOrder(order: Order): Order
     suspend fun getOrderByID(id: UUID): OrderEntity
-    suspend fun getOrderWithOrderItemsByID(id: UUID): Any
-    suspend fun getOrderWithOrderItemsByIDMono(id: UUID): Any
+    suspend fun addOrderItem(productItem: ProductItem)
+    suspend fun removeProductItem(productItem: ProductItem)
+    suspend fun pay(id: UUID): Order
+    suspend fun cancel(id: UUID): Order
+    suspend fun submit(id: UUID): Order
+    suspend fun complete(id: UUID): Order
+
 
     suspend fun getOrderWithProductItemsByID(id: UUID): Order
 

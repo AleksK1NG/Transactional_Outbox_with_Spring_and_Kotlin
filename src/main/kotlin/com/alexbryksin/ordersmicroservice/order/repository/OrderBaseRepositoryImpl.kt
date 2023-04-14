@@ -6,6 +6,7 @@ import com.alexbryksin.ordersmicroservice.order.domain.OrderStatus
 import com.alexbryksin.ordersmicroservice.order.domain.ProductItem
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.reactor.awaitSingle
 import org.slf4j.LoggerFactory
 import org.springframework.r2dbc.core.DatabaseClient
 import org.springframework.r2dbc.core.flow
@@ -19,6 +20,16 @@ import java.util.*
 
 @Repository
 class OrderBaseRepositoryImpl(private val dbClient: DatabaseClient) : OrderBaseRepository {
+
+    override suspend fun updateOrderVersion(id: UUID, version: Long): Long = coroutineScope {
+        dbClient.sql("UPDATE microservices.orders o SET version = o.version + 1 WHERE o.id = :id AND version = :version")
+            .bind("id", id)
+            .bind("version", version)
+            .fetch()
+            .rowsUpdated()
+            .awaitSingle()
+            .also { log.info("for order with id: $id version updated to $version") }
+    }
 
     override suspend fun getOrderWithProductItemsByID(id: UUID): Order = coroutineScope {
 
