@@ -34,10 +34,10 @@ class OrderServiceImpl(
     suspend fun saveOrder(order: Order): Order = coroutineScope {
 
         val savedOrder = orderRepository.save(OrderEntity.of(order))
-        val savedOrderItems = productItemRepository.saveAll(order.productItems).toList()
-
-        log.info("savedOrder: $savedOrder, savedOrderItems: $savedOrderItems")
-        savedOrder.toOrder()
+        if (order.productItems.isNotEmpty()) {
+            productItemRepository.saveAll(order.productItems).toList().also { log.info("savedOrderItems: $it") }
+        }
+        savedOrder.toOrder().also { log.info("saved order: $it") }
     }
 
     @Transactional
@@ -50,10 +50,12 @@ class OrderServiceImpl(
         productItemRepository.deleteById(id).also { log.info("deleted product item: $id") }
     }
 
+    @Transactional(readOnly = true)
     override suspend fun getOrderWithProductItemsByID(id: UUID): Order = coroutineScope {
         orderRepository.getOrderWithProductItemsByID(id)
     }
 
+    @Transactional(readOnly = true)
     override fun getOrderWithProductItemsByIDMono(id: UUID): Mono<Order> {
         return orderRepository.getOrderWithProductItemsByIDMono(id)
     }
