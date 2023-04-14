@@ -18,7 +18,7 @@ data class ProductItem(
     @Column("title") var title: String?,
     @Column("price") var price: BigDecimal = BigDecimal.ZERO,
     @Column("quantity") var quantity: Long = 0,
-    @Version @Column("version") var version: Int = 0,
+    @Version @Column("version") var version: Long = 0,
     @CreatedDate @Column("created_at") var createdAt: LocalDateTime? = null,
     @LastModifiedDate @Column("updated_at") var updatedAt: LocalDateTime? = null
 )
