@@ -21,14 +21,14 @@ import java.util.*
 @Repository
 class OrderBaseRepositoryImpl(private val dbClient: DatabaseClient) : OrderBaseRepository {
 
-    override suspend fun updateOrderVersion(id: UUID, version: Long): Long = coroutineScope {
-        dbClient.sql("UPDATE microservices.orders o SET version = o.version + 1 WHERE o.id = :id AND version = :version")
+    override suspend fun updateOrderVersion(id: UUID, newVersion: Long): Long = coroutineScope {
+        dbClient.sql("UPDATE microservices.orders SET version = (version + 1) WHERE id = :id AND version = :version")
             .bind("id", id)
-            .bind("version", version)
+            .bind("version", newVersion - 1)
             .fetch()
             .rowsUpdated()
             .awaitSingle()
-            .also { log.info("for order with id: $id version updated to $version") }
+            .also { log.info("for order with id: $id version updated to $newVersion") }
     }
 
     override suspend fun getOrderWithProductItemsByID(id: UUID): Order = coroutineScope {

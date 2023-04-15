@@ -11,14 +11,15 @@ import org.springframework.stereotype.Repository
 @Repository
 class ProductItemBaseRepositoryImpl(private val entityTemplate: R2dbcEntityTemplate) : ProductItemBaseRepository {
 
-    override suspend fun insert(productItem: ProductItem): ProductItem = coroutineScope{
+    override suspend fun insert(productItem: ProductItem): ProductItem = coroutineScope {
         val result = entityTemplate.insert(productItem).awaitSingle()
 
         log.info("saved product item: $result")
         result
     }
 
-    override suspend fun insertAll(productItems: List<ProductItem>) = coroutineScope{
+    override suspend fun insertAll(productItems: List<ProductItem>) = coroutineScope {
+
         val result = productItems.map { entityTemplate.insert(it) }.map { it.awaitSingle() }
         log.info("inserted product items: $result")
         result

@@ -14,18 +14,27 @@ class Order(
     var updatedAt: LocalDateTime? = null
 ) {
 
-    fun addProductItem(productItem: ProductItem) = productItems.add(productItem)
+    fun addProductItem(productItem: ProductItem): Order {
+        productItems.add(productItem)
+        return this
+    }
 
-    fun addProductItems(items: List<ProductItem>) = productItems.addAll(items)
+    fun addProductItems(items: List<ProductItem>): Order {
+        productItems.addAll(items)
+        return this
+    }
 
-    fun removeProductItem(id: UUID) = productItems.removeIf { it.id == id }
+    fun removeProductItem(id: UUID): Order {
+        productItems.removeIf { it.id == id }
+        return this
+    }
 
     fun pay() {
         if (productItems.isEmpty()) throw RuntimeException("invalid state")
         status = OrderStatus.PAID
     }
 
-    fun submit()  {
+    fun submit() {
         if (productItems.isEmpty()) throw RuntimeException("invalid state")
         if (status == OrderStatus.COMPLETED || status == OrderStatus.CANCELLED) throw RuntimeException("invalid state")
         if (status != OrderStatus.PAID) throw RuntimeException("invalid state")
