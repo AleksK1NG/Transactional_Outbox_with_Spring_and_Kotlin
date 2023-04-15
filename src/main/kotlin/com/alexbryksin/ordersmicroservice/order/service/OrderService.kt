@@ -12,9 +12,9 @@ interface OrderService {
     suspend fun createOrder(order: Order): Order
     suspend fun getOrderByID(id: UUID): OrderEntity
     suspend fun addOrderItem(productItem: ProductItem)
-    suspend fun removeProductItem(productItem: ProductItem)
+    suspend fun removeProductItem(orderID: UUID, productItemId: UUID)
     suspend fun pay(id: UUID, paymentId: String): Order
-    suspend fun cancel(id: UUID): Order
+    suspend fun cancel(id: UUID, reason: String?): Order
     suspend fun submit(id: UUID): Order
     suspend fun complete(id: UUID): Order
 
