@@ -1,5 +1,6 @@
 package com.alexbryksin.ordersmicroservice.order.domain
 
+import io.r2dbc.spi.Row
 import org.springframework.data.annotation.CreatedDate
 import org.springframework.data.annotation.Id
 import org.springframework.data.annotation.LastModifiedDate
@@ -21,4 +22,14 @@ data class ProductItem(
     @Version @Column("version") var version: Long = 0,
     @CreatedDate @Column("created_at") var createdAt: LocalDateTime? = null,
     @LastModifiedDate @Column("updated_at") var updatedAt: LocalDateTime? = null
+) {
+    companion object
+}
+
+fun ProductItem.Companion.of(row: Row) = ProductItem(
+    id = row["productId", UUID::class.java],
+    title = row["title", String::class.java],
+    orderId = row["order_id", UUID::class.java],
+    price = row["price", BigDecimal::class.java] ?: BigDecimal.ZERO,
+    quantity = row["quantity", Long::class.java] ?: 0,
 )

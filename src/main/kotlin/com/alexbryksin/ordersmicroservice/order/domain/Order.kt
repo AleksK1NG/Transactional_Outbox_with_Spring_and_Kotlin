@@ -1,5 +1,6 @@
 package com.alexbryksin.ordersmicroservice.order.domain
 
+import com.alexbryksin.ordersmicroservice.order.exceptions.*
 import java.time.LocalDateTime
 import java.util.*
 
@@ -30,25 +31,24 @@ class Order(
     }
 
     fun pay() {
-        if (productItems.isEmpty()) throw RuntimeException("invalid state")
+        if (productItems.isEmpty()) throw OrderHasNotProductItemsException(id)
         status = OrderStatus.PAID
     }
 
     fun submit() {
-        if (productItems.isEmpty()) throw RuntimeException("invalid state")
-        if (status == OrderStatus.COMPLETED || status == OrderStatus.CANCELLED) throw RuntimeException("invalid state")
-        if (status != OrderStatus.PAID) throw RuntimeException("invalid state")
+        if (productItems.isEmpty()) throw OrderHasNotProductItemsException(id)
+        if (status == OrderStatus.COMPLETED || status == OrderStatus.CANCELLED) throw SubmitOrderException(id, status)
+        if (status != OrderStatus.PAID) throw OrderNotPaidException(id)
         status = OrderStatus.SUBMITTED
     }
 
     fun cancel() {
-        if (status == OrderStatus.COMPLETED || status == OrderStatus.CANCELLED) throw RuntimeException("invalid state")
+        if (status == OrderStatus.COMPLETED || status == OrderStatus.CANCELLED) throw CancelOrderException(id, status)
         status = OrderStatus.CANCELLED
     }
 
     fun complete() {
-        if (status == OrderStatus.CANCELLED) throw RuntimeException("invalid state")
-        if (status != OrderStatus.SUBMITTED) throw RuntimeException("invalid state")
+        if (status == OrderStatus.CANCELLED || status != OrderStatus.SUBMITTED) throw CompleteOrderException(id, status)
         status = OrderStatus.COMPLETED
     }
 

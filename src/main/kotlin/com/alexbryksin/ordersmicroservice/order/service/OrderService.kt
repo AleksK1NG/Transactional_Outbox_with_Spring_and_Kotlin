@@ -8,7 +8,6 @@ import java.util.*
 
 interface OrderService {
 
-
     suspend fun createOrder(order: Order): Order
     suspend fun getOrderByID(id: UUID): OrderEntity
     suspend fun addOrderItem(productItem: ProductItem)
@@ -17,9 +16,6 @@ interface OrderService {
     suspend fun cancel(id: UUID, reason: String?): Order
     suspend fun submit(id: UUID): Order
     suspend fun complete(id: UUID): Order
-
-
     suspend fun getOrderWithProductItemsByID(id: UUID): Order
-
     fun getOrderWithProductItemsByIDMono(id: UUID): Mono<Order>
 }

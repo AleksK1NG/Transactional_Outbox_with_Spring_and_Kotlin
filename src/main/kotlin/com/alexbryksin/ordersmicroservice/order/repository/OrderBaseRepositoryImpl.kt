@@ -2,8 +2,8 @@ package com.alexbryksin.ordersmicroservice.order.repository
 
 import com.alexbryksin.ordersmicroservice.order.domain.Order
 import com.alexbryksin.ordersmicroservice.order.domain.OrderEntity
-import com.alexbryksin.ordersmicroservice.order.domain.OrderStatus
 import com.alexbryksin.ordersmicroservice.order.domain.ProductItem
+import com.alexbryksin.ordersmicroservice.order.domain.of
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.reactor.awaitSingle
@@ -12,9 +12,6 @@ import org.springframework.r2dbc.core.DatabaseClient
 import org.springframework.r2dbc.core.flow
 import org.springframework.stereotype.Repository
 import reactor.core.publisher.Mono
-import java.math.BigDecimal
-import java.math.BigInteger
-import java.time.LocalDateTime
 import java.util.*
 
 
@@ -41,33 +38,7 @@ class OrderBaseRepositoryImpl(private val dbClient: DatabaseClient) : OrderBaseR
             |WHERE o.id = :id""".trimMargin()
         )
             .bind("id", id)
-            .map { row, _ ->
-                try {
-                    val order = OrderEntity(
-                        id = row["id", UUID::class.java],
-                        email = row["email", String::class.java],
-                        status = OrderStatus.valueOf(row["status", String::class.java] ?: ""),
-                        address = row["address", String::class.java],
-                        version = row["version", BigInteger::class.java]?.toLong() ?: 0,
-                        createdAt = row["created_at", LocalDateTime::class.java],
-                        updatedAt = row["updated_at", LocalDateTime::class.java],
-                    )
-                    val productItem = ProductItem(
-                        id = row["productId", UUID::class.java],
-                        title = row["title", String::class.java],
-                        orderId = row["order_id", UUID::class.java],
-                        price = row["price", BigDecimal::class.java] ?: BigDecimal.ZERO,
-                        quantity = row["quantity", BigInteger::class.java]?.toLong() ?: 0,
-                        version = row["version", BigInteger::class.java]?.toLong() ?: 0,
-                        createdAt = row["itemCreatedAt", LocalDateTime::class.java],
-                        updatedAt = row["itemUpdatedAt", LocalDateTime::class.java],
-                    )
-                    Pair(order, productItem)
-                } catch (e: Exception) {
-                    log.error("error while mapping: ${e.localizedMessage}")
-                    throw e
-                }
-            }
+            .map { row, _ -> Pair(OrderEntity.of(row), ProductItem.of(row)) }
             .flow()
             .toList()
         val order = Order(
@@ -93,25 +64,7 @@ class OrderBaseRepositoryImpl(private val dbClient: DatabaseClient) : OrderBaseR
             |WHERE o.id = :id""".trimMargin()
         )
             .bind("id", id)
-            .map { row, _ ->
-                val order = OrderEntity(
-                    id = row["id", UUID::class.java]!!,
-                    email = row["email", String::class.java]!!,
-                    status = row["status", OrderStatus::class.java]!!,
-                    address = row["address", String::class.java]!!,
-                    version = row["version", Long::class.java]!!,
-                    createdAt = row["created_at", LocalDateTime::class.java]!!,
-                    updatedAt = row["updated_at", LocalDateTime::class.java]!!,
-                )
-                val productItem = ProductItem(
-                    id = row["productId", UUID::class.java],
-                    title = row["title", String::class.java],
-                    orderId = row["order_id", UUID::class.java],
-                    price = row["price", BigDecimal::class.java] ?: BigDecimal.ZERO,
-                    quantity = row["quantity", Long::class.java] ?: 0,
-                )
-                Pair(order, productItem)
-            }
+            .map { row, _ -> Pair(OrderEntity.of(row), ProductItem.of(row)) }
             .all()
             .collectList()
             .map {
@@ -123,7 +76,7 @@ class OrderBaseRepositoryImpl(private val dbClient: DatabaseClient) : OrderBaseR
                     version = it[0].first.version,
                     createdAt = it[0].first.createdAt,
                     updatedAt = it[0].first.updatedAt,
-                    productItems = it.map { it.second }.toMutableList()
+                    productItems = it.map { item -> item.second }.toMutableList()
                 )
             }
             .doOnNext { log.info("loaded order: $it") }
