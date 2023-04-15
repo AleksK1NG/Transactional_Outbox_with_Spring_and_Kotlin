@@ -38,7 +38,7 @@ class OrderController(private val orderService: OrderService) {
         val order = Order(
             email = createOrderDTO.email,
             address = createOrderDTO.address,
-            productItems = createOrderDTO.productItems.map { ProductItem(title = it.title, price = it.price, quantity = it.quantity) }
+            productItems = createOrderDTO.productItems.map { ProductItem(title = it.title, price = it.price, quantity = it.quantity, id = it.id) }
                 .toMutableList()
         )
         val createdOrder = orderService.createOrder(order)
