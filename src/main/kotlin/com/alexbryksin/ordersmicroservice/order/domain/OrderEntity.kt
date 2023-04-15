@@ -1,5 +1,6 @@
 package com.alexbryksin.ordersmicroservice.order.domain
 
+import io.r2dbc.spi.Row
 import org.springframework.data.annotation.CreatedDate
 import org.springframework.data.annotation.Id
 import org.springframework.data.annotation.LastModifiedDate
@@ -40,4 +41,14 @@ fun OrderEntity.Companion.of(order: Order): OrderEntity = OrderEntity(
     version = order.version,
     createdAt = order.createdAt,
     updatedAt = order.updatedAt
+)
+
+fun OrderEntity.Companion.of(row: Row) =  OrderEntity(
+    id = row["id", UUID::class.java]!!,
+    email = row["email", String::class.java]!!,
+    status = row["status", OrderStatus::class.java]!!,
+    address = row["address", String::class.java]!!,
+    version = row["version", Long::class.java]!!,
+    createdAt = row["created_at", LocalDateTime::class.java]!!,
+    updatedAt = row["updated_at", LocalDateTime::class.java]!!,
 )

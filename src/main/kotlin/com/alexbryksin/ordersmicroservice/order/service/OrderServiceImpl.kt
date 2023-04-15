@@ -53,7 +53,7 @@ class OrderServiceImpl(
         val order = orderRepository.findById(productItem.orderId!!) ?: throw OrderNotFoundException(productItem.orderId)
         productItemRepository.insert(productItem).also { log.info("saved product item: $it") }
 
-        val event = outboxRecord(order.id.toString(), order.version, ProductItemAddedEvent(order.id.toString(), productItem), PRODUCT_ITEM_ADDED_EVENT)
+        val event = outboxRecord(order.id.toString(), order.version + 1, ProductItemAddedEvent(order.id.toString(), productItem), PRODUCT_ITEM_ADDED_EVENT)
         outboxRepository.save(event).also { log.info("saved outbox record: $it") }
 
         val result = orderRepository.updateOrderVersion(order.id!!, order.version + 1)
@@ -67,7 +67,7 @@ class OrderServiceImpl(
 
         val record = outboxRecord(
             order.id.toString(),
-            order.version,
+            order.version + 1,
             ProductItemRemovedEvent(order.id.toString(), productItemId.toString()), PRODUCT_ITEM_REMOVED_EVENT
         )
         outboxRepository.save(record).also { log.info("saved outbox record: $it") }
@@ -79,8 +79,8 @@ class OrderServiceImpl(
 
     @Transactional
     override suspend fun pay(id: UUID, paymentId: String): Order = coroutineScope {
-        val orderEntity = orderRepository.findById(id) ?: throw OrderNotFoundException(id)
-        val order = orderEntity.toOrder().apply { pay() }
+        val order = orderRepository.getOrderWithProductItemsByID(id)
+        order.pay()
         val savedOrder = orderRepository.save(OrderEntity.of(order)).toOrder()
 
         val record = outboxRecord(savedOrder.id.toString(), savedOrder.version, OrderPaidEvent(savedOrder.id.toString(), paymentId), ORDER_PAID_EVENT)
@@ -104,8 +104,8 @@ class OrderServiceImpl(
 
     @Transactional
     override suspend fun submit(id: UUID): Order = coroutineScope {
-        val orderEntity = orderRepository.findById(id) ?: throw OrderNotFoundException(id)
-        val order = orderEntity.toOrder().apply { submit() }
+        val order = orderRepository.getOrderWithProductItemsByID(id)
+        order.submit()
         val savedOrder = orderRepository.save(OrderEntity.of(order)).toOrder()
 
         val event = outboxRecord(savedOrder.id.toString(), savedOrder.version, OrderSubmittedEvent(savedOrder.id.toString()), ORDER_SUBMITTED_EVENT)

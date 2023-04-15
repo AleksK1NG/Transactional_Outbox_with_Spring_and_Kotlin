@@ -1,9 +1,6 @@
 package com.alexbryksin.ordersmicroservice.order.controllers
 
-import com.alexbryksin.ordersmicroservice.order.dto.CreateOrderDTO
-import com.alexbryksin.ordersmicroservice.order.dto.CreateProductItemDTO
-import com.alexbryksin.ordersmicroservice.order.dto.OrderSuccessResponse
-import com.alexbryksin.ordersmicroservice.order.dto.of
+import com.alexbryksin.ordersmicroservice.order.dto.*
 import com.alexbryksin.ordersmicroservice.order.service.OrderService
 import kotlinx.coroutines.coroutineScope
 import org.slf4j.LoggerFactory
@@ -29,12 +26,6 @@ class OrderController(private val orderService: OrderService) {
             .also { response -> log.info("getOrderByID response: $response") }
     }
 
-
-    @PutMapping(path = ["{id}"])
-    suspend fun updateOrder(@PathVariable id: String) = coroutineScope {
-        ResponseEntity.ok().body("OK").also { log.info("createOrder") }
-    }
-
     @PostMapping
     suspend fun createOrder(@RequestBody createOrderDTO: CreateOrderDTO) = coroutineScope {
         orderService.createOrder(createOrderDTO.toOrder()).let {
@@ -43,15 +34,38 @@ class OrderController(private val orderService: OrderService) {
         }
     }
 
-
     @PutMapping(path = ["/add/{id}"])
     suspend fun addProductItem(@PathVariable id: UUID, @RequestBody dto: CreateProductItemDTO) = coroutineScope {
-        orderService.addOrderItem(dto.toProductItem(id)).let { ResponseEntity.ok(it) }.also { log.info("addProductItem result: $it") }
+        orderService.addOrderItem(dto.toProductItem(id)).let { ResponseEntity.ok(it) }
+            .also { log.info("addProductItem result: $it") }
     }
 
     @PutMapping(path = ["/remove/{orderId}/{productItemId}"])
     suspend fun removeProductItem(@PathVariable orderId: UUID, @PathVariable productItemId: UUID) = coroutineScope {
-        orderService.removeProductItem(orderId, productItemId).let { ResponseEntity.ok(it) }.also { log.info("removeProductItem result: $it") }
+        orderService.removeProductItem(orderId, productItemId).let { ResponseEntity.ok(it) }
+            .also { log.info("removeProductItem result: $it") }
+    }
+
+    @PutMapping(path = ["/pay/{id}"])
+    suspend fun payOrder(@PathVariable id: UUID, @RequestBody dto: PayOrderDTO) = coroutineScope {
+        orderService.pay(id, dto.paymentId).let { ResponseEntity.ok(OrderSuccessResponse.of(it)) }.also { log.info("payOrder result: $it") }
+    }
+
+    @PutMapping(path = ["/cancel/{id}"])
+    suspend fun cancelOrder(@PathVariable id: UUID, @RequestBody dto: CancelOrderDTO) = coroutineScope {
+        orderService.cancel(id, dto.reason).let { ResponseEntity.ok(OrderSuccessResponse.of(it)) }.also { log.info("cancelOrder result: $it") }
+    }
+
+    @PutMapping(path = ["/submit/{id}"])
+    suspend fun submitOrder(@PathVariable id: UUID) = coroutineScope {
+        orderService.submit(id).let { ResponseEntity.ok(OrderSuccessResponse.of(it)) }
+            .also { log.info("submitOrder result: $it") }
+    }
+
+    @PutMapping(path = ["/complete/{id}"])
+    suspend fun completeOrder(@PathVariable id: UUID) = coroutineScope {
+        orderService.complete(id).let { ResponseEntity.ok(OrderSuccessResponse.of(it)) }
+            .also { log.info("completeOrder result: $it") }
     }
 
 
