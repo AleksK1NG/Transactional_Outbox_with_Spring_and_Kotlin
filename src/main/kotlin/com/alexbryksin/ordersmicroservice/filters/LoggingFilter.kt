@@ -19,7 +19,7 @@ class LoggingFilter : WebFilter {
             .doOnSuccess {
                 if (!exchange.request.path.value().contains("actuator")) {
                     log.info(
-                        "{}, path: {}, status: {}, headers: {}, time: {}ms",
+                        "{} {} {} {} {}ms",
                         exchange.request.method.name().uppercase(),
                         exchange.request.path.value(),
                         exchange.response.statusCode?.value(),

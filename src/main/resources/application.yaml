@@ -67,16 +67,48 @@ logging:
 
 
 topics:
-  bankAccountCreated:
-    name: bank-account-created
+  orderCreated:
+    name: order-created
     partitions: 3
     replication: 1
+  productAdded:
+    name: product-added
+    partitions: 3
+    replication: 1
+  productRemoved:
+    name: product-added
+    partitions: 3
+    replication: 1
+  orderPaid:
+    name: order-paid
+    partitions: 3
+    replication: 1
+  orderCancelled:
+    name: order-cancelled
+    partitions: 3
+    replication: 1
+  orderSubmitted:
+    name: order-submitted
+    partitions: 3
+    replication: 1
+  orderCompleted:
+    name: order-completed
+    partitions: 3
+    replication: 1
+
   retryTopic:
     name: retry-topic
     partitions: 3
     replication: 1
+
   deadLetterQueue:
     name: dead-letter-queue
+    partitions: 3
+    replication: 1
+
+
+  bankAccountCreated:
+    name: bank-account-created
     partitions: 3
     replication: 1
   balanceDeposited:

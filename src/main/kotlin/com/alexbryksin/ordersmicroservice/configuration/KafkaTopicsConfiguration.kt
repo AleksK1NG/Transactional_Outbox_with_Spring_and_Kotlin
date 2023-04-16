@@ -17,6 +17,15 @@ class KafkaTopicsConfiguration {
     var deadLetterQueue: TopicConfiguration? = null
 
 
+    var orderCreated: TopicConfiguration? = null
+    var orderPaid: TopicConfiguration? = null
+    var orderCancelled: TopicConfiguration? = null
+    var orderSubmitted: TopicConfiguration? = null
+    var orderCompleted: TopicConfiguration? = null
+    var productAdded: TopicConfiguration? = null
+    var productRemoved: TopicConfiguration? = null
+
+
     fun getTopics() = listOf(
         bankAccountCreated,
         balanceDeposited,
@@ -24,6 +33,13 @@ class KafkaTopicsConfiguration {
         emailChanged,
         retryTopic,
         deadLetterQueue,
+        orderCreated,
+        productRemoved,
+        productAdded,
+        orderCancelled,
+        orderPaid,
+        orderSubmitted,
+        orderCompleted,
     )
 
     @PostConstruct
