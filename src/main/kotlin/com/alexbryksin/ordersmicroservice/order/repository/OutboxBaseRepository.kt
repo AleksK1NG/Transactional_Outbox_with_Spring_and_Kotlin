@@ -1,6 +1,6 @@
 package com.alexbryksin.ordersmicroservice.order.repository
 
-import com.alexbryksin.ordersmicroservice.bankAccount.domain.OutboxEvent
+import com.alexbryksin.ordersmicroservice.order.domain.OutboxRecord
 import org.springframework.stereotype.Repository
 import java.util.*
 
@@ -8,5 +8,5 @@ import java.util.*
 @Repository
 interface OutboxBaseRepository {
     suspend fun deleteOutboxRecordByID(id: UUID, callback: suspend () -> Unit): Long
-    suspend fun deleteOutboxRecordsWithLock(callback: suspend (outboxEvent: OutboxEvent) -> Unit)
+    suspend fun deleteOutboxRecordsWithLock(callback: suspend (outboxRecord: OutboxRecord) -> Unit)
 }

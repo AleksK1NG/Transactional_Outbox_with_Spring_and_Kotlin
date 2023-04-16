@@ -1,6 +1,6 @@
 package com.alexbryksin.ordersmicroservice.order.events
 
-data class OrderPaidEvent(val orderId: String, val paymentId: String) {
+data class OrderPaidEvent(val orderId: String, val paymentId: String): BaseEvent {
     companion object {
         const val ORDER_PAID_EVENT = "ORDER_PAID"
     }

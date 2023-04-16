@@ -2,7 +2,7 @@ package com.alexbryksin.ordersmicroservice.order.repository
 
 import com.alexbryksin.ordersmicroservice.order.domain.Order
 import com.alexbryksin.ordersmicroservice.order.domain.OrderEntity
-import com.alexbryksin.ordersmicroservice.order.domain.ProductItem
+import com.alexbryksin.ordersmicroservice.order.domain.ProductItemEntity
 import com.alexbryksin.ordersmicroservice.order.domain.of
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.toList
@@ -41,7 +41,7 @@ class OrderBaseRepositoryImpl(
             |WHERE o.id = :id""".trimMargin()
         )
             .bind("id", id)
-            .map { row, _ -> Pair(OrderEntity.of(row), ProductItem.of(row)) }
+            .map { row, _ -> Pair(OrderEntity.of(row), ProductItemEntity.of(row)) }
             .flow()
             .toList()
             .let { orderFromList(it) }
@@ -57,7 +57,7 @@ class OrderBaseRepositoryImpl(
             |WHERE o.id = :id""".trimMargin()
         )
             .bind("id", id)
-            .map { row, _ -> Pair(OrderEntity.of(row), ProductItem.of(row)) }
+            .map { row, _ -> Pair(OrderEntity.of(row), ProductItemEntity.of(row)) }
             .all()
             .collectList()
             .map { orderFromMutableList(it) }
@@ -65,7 +65,7 @@ class OrderBaseRepositoryImpl(
     }
 
 
-    private fun orderFromMutableList(list: MutableList<Pair<OrderEntity, ProductItem>>): Order = Order(
+    private fun orderFromMutableList(list: MutableList<Pair<OrderEntity, ProductItemEntity>>): Order = Order(
         id = list[0].first.id,
         email = list[0].first.email,
         status = list[0].first.status,
@@ -73,10 +73,10 @@ class OrderBaseRepositoryImpl(
         version = list[0].first.version,
         createdAt = list[0].first.createdAt,
         updatedAt = list[0].first.updatedAt,
-        productItems = list.map { item -> item.second }.toMutableList()
+        productItemEntities = list.map { item -> item.second }.toMutableList()
     )
 
-    private fun orderFromList(list: List<Pair<OrderEntity, ProductItem>>): Order = Order(
+    private fun orderFromList(list: List<Pair<OrderEntity, ProductItemEntity>>): Order = Order(
         id = list[0].first.id,
         email = list[0].first.email,
         status = list[0].first.status,
@@ -84,7 +84,7 @@ class OrderBaseRepositoryImpl(
         version = list[0].first.version,
         createdAt = list[0].first.createdAt,
         updatedAt = list[0].first.updatedAt,
-        productItems = list.map { item -> item.second }.toMutableList()
+        productItemEntities = list.map { item -> item.second }.toMutableList()
     )
 
     companion object {
