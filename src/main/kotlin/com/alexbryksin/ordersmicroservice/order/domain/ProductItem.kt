@@ -8,6 +8,7 @@ import org.springframework.data.annotation.Version
 import org.springframework.data.relational.core.mapping.Column
 import org.springframework.data.relational.core.mapping.Table
 import java.math.BigDecimal
+import java.math.BigInteger
 import java.time.LocalDateTime
 import java.util.*
 
@@ -31,5 +32,5 @@ fun ProductItem.Companion.of(row: Row) = ProductItem(
     title = row["title", String::class.java],
     orderId = row["order_id", UUID::class.java],
     price = row["price", BigDecimal::class.java] ?: BigDecimal.ZERO,
-    quantity = row["quantity", Long::class.java] ?: 0,
+    quantity = row["quantity", BigInteger::class.java]?.toLong() ?: 0,
 )

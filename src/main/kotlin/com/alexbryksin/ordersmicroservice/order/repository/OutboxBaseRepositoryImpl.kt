@@ -22,6 +22,7 @@ class OutboxBaseRepositoryImpl(
     override suspend fun deleteOutboxRecordByID(id: UUID, callback: suspend () -> Unit): Long = withContext(Dispatchers.IO) {
         withTimeout(DELETE_OUTBOX_RECORD_TIMEOUT_MILLIS) {
             txOp.executeAndAwait {
+
                 callback()
 
                 dbClient.sql("DELETE FROM microservices.outbox_table WHERE event_id = :eventId")
