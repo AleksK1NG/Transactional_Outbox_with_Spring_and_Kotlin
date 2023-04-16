@@ -111,7 +111,8 @@ class OrderServiceImpl(
         val event = outboxRecord(savedOrder.id.toString(), savedOrder.version, OrderSubmittedEvent(savedOrder.id.toString()), ORDER_SUBMITTED_EVENT)
         outboxRepository.save(event).also { log.info("saved outbox record: $it") }
 
-        savedOrder.also { log.info("order submitted: ${savedOrder.status} for id: $id") }
+        savedOrder.addProductItems(order.productItems)
+            .also { log.info("order submitted: ${savedOrder.status} for id: $id") }
     }
 
     @Transactional
@@ -138,8 +139,8 @@ class OrderServiceImpl(
     }
 
 
-    override suspend fun getOrderByID(id: UUID): OrderEntity {
-        TODO("Not yet implemented")
+    override suspend fun getOrderByID(id: UUID): Order = coroutineScope {
+        orderRepository.findById(id)?.toOrder() ?: throw OrderNotFoundException(id)
     }
 
     private fun outboxRecord(aggregateId: String, version: Long, data: Any, eventType: String): OutboxRecord = OutboxRecord(

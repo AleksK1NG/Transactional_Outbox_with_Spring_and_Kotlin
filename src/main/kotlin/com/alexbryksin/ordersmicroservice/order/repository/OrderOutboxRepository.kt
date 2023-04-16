@@ -6,5 +6,4 @@ import org.springframework.stereotype.Repository
 import java.util.*
 
 @Repository
-interface OrderOutboxRepository : CoroutineCrudRepository<OutboxRecord, UUID>, OutboxBaseRepository {
-}
+interface OrderOutboxRepository : CoroutineCrudRepository<OutboxRecord, UUID>, OutboxBaseRepository
