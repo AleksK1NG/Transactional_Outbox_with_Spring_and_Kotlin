@@ -17,4 +17,6 @@ interface OrderService {
     suspend fun complete(id: UUID): Order
     suspend fun getOrderWithProductItemsByID(id: UUID): Order
     fun getOrderWithProductItemsByIDMono(id: UUID): Mono<Order>
+
+    suspend fun deleteOutboxRecordsWithLock()
 }
