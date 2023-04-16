@@ -1,7 +1,7 @@
 package com.alexbryksin.ordersmicroservice.order.repository
 
-import com.alexbryksin.ordersmicroservice.bankAccount.domain.OutboxEvent
-import com.alexbryksin.ordersmicroservice.bankAccount.domain.fromRow
+import com.alexbryksin.ordersmicroservice.order.domain.OutboxRecord
+import com.alexbryksin.ordersmicroservice.order.domain.of
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
@@ -35,13 +35,13 @@ class OutboxBaseRepositoryImpl(
         }
     }
 
-    override suspend fun deleteOutboxRecordsWithLock(callback: suspend (outboxEvent: OutboxEvent) -> Unit) = withContext(Dispatchers.IO) {
+    override suspend fun deleteOutboxRecordsWithLock(callback: suspend (outboxRecord: OutboxRecord) -> Unit) = withContext(Dispatchers.IO) {
         withTimeout(DELETE_OUTBOX_RECORD_TIMEOUT_MILLIS) {
             txOp.executeAndAwait {
                 log.info("starting delete outbox events")
 
                 dbClient.sql("SELECT * FROM microservices.outbox_table ORDER BY timestamp ASC LIMIT 10 FOR UPDATE SKIP LOCKED")
-                    .map { row, _ -> OutboxEvent.fromRow(row) }
+                    .map { row, _ -> OutboxRecord.of(row) }
                     .flow()
                     .onEach {
                         log.info("deleting outboxEvent with id: ${it.eventId}")

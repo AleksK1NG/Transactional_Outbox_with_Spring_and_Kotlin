@@ -22,7 +22,7 @@ fun OrderSuccessResponse.Companion.of(order: Order): OrderSuccessResponse = Orde
     address = order.address ?: "",
     status = order.status,
     version = order.version,
-    productItems = order.productItems.map { ProductItemSuccessResponse.of(it) }.toList(),
+    productItems = order.productItemEntities.map { ProductItemSuccessResponse.of(it) }.toList(),
     createdAt = order.createdAt.toString(),
     updatedAt = order.updatedAt.toString(),
 )

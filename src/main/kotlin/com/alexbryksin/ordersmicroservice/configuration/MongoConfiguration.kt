@@ -1,6 +1,7 @@
 package com.alexbryksin.ordersmicroservice.configuration
 
 import com.alexbryksin.ordersmicroservice.bankAccount.domain.BankAccountDocument
+import com.alexbryksin.ordersmicroservice.order.domain.OrderDocument
 import jakarta.annotation.PostConstruct
 import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.runBlocking
@@ -32,6 +33,20 @@ class MongoConfiguration(private val mongoTemplate: ReactiveMongoTemplate) {
         val emailIndex = mongoTemplate.indexOps(BankAccountDocument::class.java)
             .ensureIndex(Index().sparse().on("email", Sort.DEFAULT_DIRECTION).unique()).awaitSingle()
         log.info("emailIndex: $emailIndex")
+
+
+        val orderCollectionExists = mongoTemplate.collectionExists(OrderDocument::class.java).awaitSingle()
+        if (!orderCollectionExists) {
+            val ordersCollection = mongoTemplate.createCollection(OrderDocument::class.java).awaitSingle()
+            log.info("order collection: ${ordersCollection.namespace.fullName}")
+        }
+
+        val ordersIndexInfo = mongoTemplate.indexOps(OrderDocument::class.java).indexInfo.collectList().awaitSingle()
+        log.info("ordersIndexInfo: $ordersIndexInfo")
+
+        val orderEmailIndex = mongoTemplate.indexOps(OrderDocument::class.java)
+            .ensureIndex(Index().sparse().on("email", Sort.DEFAULT_DIRECTION).unique()).awaitSingle()
+        log.info("orderEmailIndex: $emailIndex")
 
         log.info("mongodb initialized")
     }

@@ -1,8 +1,8 @@
 package com.alexbryksin.ordersmicroservice.order.repository
 
-import com.alexbryksin.ordersmicroservice.order.domain.ProductItem
+import com.alexbryksin.ordersmicroservice.order.domain.ProductItemEntity
 import org.springframework.data.repository.kotlin.CoroutineCrudRepository
 import java.util.*
 
-interface ProductItemRepository : CoroutineCrudRepository<ProductItem, UUID>, ProductItemBaseRepository {
+interface ProductItemRepository : CoroutineCrudRepository<ProductItemEntity, UUID>, ProductItemBaseRepository {
 }

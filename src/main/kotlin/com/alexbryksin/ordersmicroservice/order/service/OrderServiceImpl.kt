@@ -44,8 +44,8 @@ class OrderServiceImpl(
     override suspend fun createOrder(order: Order): Order = coroutineScope {
         val resultPair = txOp.executeAndAwait {
             orderRepository.save(OrderEntity.of(order)).let {
-                order.productItems.forEach { item -> item.orderId = it.id }
-                val insertedItems = productItemRepository.insertAll(order.productItems).toList()
+                order.productItemEntities.forEach { item -> item.orderId = it.id }
+                val insertedItems = productItemRepository.insertAll(order.productItemEntities).toList()
 
                 val record = outboxRecord(it.id.toString(), it.version, OrderCreatedEvent(order), ORDER_CREATED_EVENT)
                 outboxRepository.save(record).also { savedRecord -> log.info("saved outbox record: $savedRecord") }
@@ -57,12 +57,12 @@ class OrderServiceImpl(
         resultPair.first
     }
 
-    override suspend fun addOrderItem(productItem: ProductItem): Unit = coroutineScope {
+    override suspend fun addOrderItem(productItemEntity: ProductItemEntity): Unit = coroutineScope {
         val record = txOp.executeAndAwait {
-            val order = orderRepository.findById(productItem.orderId!!) ?: throw OrderNotFoundException(productItem.orderId)
-            productItemRepository.insert(productItem).also { log.info("saved product item: $it") }
+            val order = orderRepository.findById(productItemEntity.orderId!!) ?: throw OrderNotFoundException(productItemEntity.orderId)
+            productItemRepository.insert(productItemEntity).also { log.info("saved product item: $it") }
 
-            val event = outboxRecord(order.id.toString(), order.version + 1, ProductItemAddedEvent(order.id.toString(), productItem), PRODUCT_ITEM_ADDED_EVENT)
+            val event = outboxRecord(order.id.toString(), order.version + 1, ProductItemAddedEvent(order.id.toString(), productItemEntity), PRODUCT_ITEM_ADDED_EVENT)
             outboxRepository.save(event).also { log.info("saved outbox record: $it") }
 
             val result = orderRepository.updateOrderVersion(order.id!!, order.version + 1)
@@ -92,7 +92,7 @@ class OrderServiceImpl(
 
         publish(record)
     }
-    
+
     override suspend fun pay(id: UUID, paymentId: String): Order = coroutineScope {
         val resultPair = txOp.executeAndAwait {
             val order = orderRepository.getOrderWithProductItemsByID(id)
@@ -136,7 +136,7 @@ class OrderServiceImpl(
 
             val record = outboxRecord(savedOrder.id.toString(), savedOrder.version, OrderSubmittedEvent(savedOrder.id.toString()), ORDER_SUBMITTED_EVENT)
             outboxRepository.save(record).also { log.info("saved outbox record: $it") }
-            Pair(savedOrder.addProductItems(order.productItems), record)
+            Pair(savedOrder.addProductItems(order.productItemEntities), record)
         }
 
         publish(resultPair.second)
@@ -200,6 +200,7 @@ class OrderServiceImpl(
         PRODUCT_ITEM_ADDED_EVENT -> kafkaTopicsConfiguration.productAdded?.name
         PRODUCT_ITEM_REMOVED_EVENT -> kafkaTopicsConfiguration.productRemoved?.name
         ORDER_CANCELLED_EVENT -> kafkaTopicsConfiguration.orderCancelled?.name
+        ORDER_PAID_EVENT -> kafkaTopicsConfiguration.orderCancelled?.name
         ORDER_SUBMITTED_EVENT -> kafkaTopicsConfiguration.orderSubmitted?.name
         ORDER_COMPLETED_EVENT -> kafkaTopicsConfiguration.orderCompleted?.name
         else -> throw UnknownEventTypeException(eventType)
