@@ -1,7 +1,7 @@
 package com.alexbryksin.ordersmicroservice.order.dto
 
 import com.alexbryksin.ordersmicroservice.order.domain.Order
-import com.alexbryksin.ordersmicroservice.order.domain.ProductItemEntity
+import com.alexbryksin.ordersmicroservice.order.domain.ProductItem
 
 data class CreateOrderDTO(
     val email: String,
@@ -13,7 +13,7 @@ data class CreateOrderDTO(
     fun toOrder(): Order = Order(
         email = this.email,
         address = this.address,
-        productItemEntities = this.productItems.map { ProductItemEntity(title = it.title, price = it.price, quantity = it.quantity, id = it.id) }
+        productItemEntities = this.productItems.map { ProductItem(title = it.title, price = it.price, quantity = it.quantity, id = it.id) }
             .toMutableList()
     )
 }

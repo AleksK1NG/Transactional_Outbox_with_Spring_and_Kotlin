@@ -25,6 +25,17 @@ data class ProductItemEntity(
     @LastModifiedDate @Column("updated_at") var updatedAt: LocalDateTime? = null
 ) {
     companion object
+
+    fun toProductItem() = ProductItem(
+        id = this.id,
+        orderId = this.orderId,
+        title = this.title,
+        price = this.price,
+        quantity = this.quantity,
+        version = this.version,
+        createdAt = this.createdAt,
+        updatedAt = this.updatedAt
+    )
 }
 
 fun ProductItemEntity.Companion.of(row: Row) = ProductItemEntity(
@@ -33,4 +44,16 @@ fun ProductItemEntity.Companion.of(row: Row) = ProductItemEntity(
     orderId = row["order_id", UUID::class.java],
     price = row["price", BigDecimal::class.java] ?: BigDecimal.ZERO,
     quantity = row["quantity", BigInteger::class.java]?.toLong() ?: 0,
+)
+
+
+fun ProductItemEntity.Companion.of(productItem: ProductItem): ProductItemEntity = ProductItemEntity(
+    id = productItem.id,
+    orderId = productItem.orderId,
+    title = productItem.title,
+    price = productItem.price,
+    quantity = productItem.quantity,
+    version = productItem.version,
+    createdAt = productItem.createdAt,
+    updatedAt = productItem.updatedAt
 )

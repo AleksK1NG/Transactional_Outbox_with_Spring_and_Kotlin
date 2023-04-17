@@ -33,7 +33,7 @@ data class OrderDocument(
         return this
     }
 
-    fun removeProductItem(id: String): OrderDocument {
+    fun removeProductItem(id: UUID): OrderDocument {
         productItemEntities.removeIf { it.id == id }
         return this
     }
