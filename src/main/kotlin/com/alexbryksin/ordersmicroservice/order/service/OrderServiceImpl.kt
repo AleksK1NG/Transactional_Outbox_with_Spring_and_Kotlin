@@ -44,12 +44,12 @@ class OrderServiceImpl(
     override suspend fun createOrder(order: Order): Order = coroutineScope {
         val resultPair = txOp.executeAndAwait {
             orderRepository.save(OrderEntity.of(order)).let {
-                order.productItemEntities.forEach { item -> item.orderId = it.id }
-                val insertedItems = productItemRepository.insertAll(order.productItemEntities).toList()
+                val productItemsList = order.productItemEntities.map { item -> ProductItemEntity.of(item.copy(orderId = it.id)) }
+                val insertedItems = productItemRepository.insertAll(productItemsList).toList()
 
                 val record = outboxRecord(it.id.toString(), it.version, OrderCreatedEvent(order), ORDER_CREATED_EVENT)
                 outboxRepository.save(record).also { savedRecord -> log.info("saved outbox record: $savedRecord") }
-                Pair(it.toOrder().addProductItems(insertedItems), record)
+                Pair(it.toOrder().addProductItems(insertedItems.map { item -> item.toProductItem() }), record)
             }
         }
 
@@ -62,7 +62,8 @@ class OrderServiceImpl(
             val order = orderRepository.findById(productItemEntity.orderId!!) ?: throw OrderNotFoundException(productItemEntity.orderId)
             productItemRepository.insert(productItemEntity).also { log.info("saved product item: $it") }
 
-            val event = outboxRecord(order.id.toString(), order.version + 1, ProductItemAddedEvent(order.id.toString(), productItemEntity), PRODUCT_ITEM_ADDED_EVENT)
+            val event =
+                outboxRecord(order.id.toString(), order.version + 1, ProductItemAddedEvent(order.id.toString(), productItemEntity), PRODUCT_ITEM_ADDED_EVENT)
             outboxRepository.save(event).also { log.info("saved outbox record: $it") }
 
             val result = orderRepository.updateOrderVersion(order.id!!, order.version + 1)

@@ -73,7 +73,7 @@ class OrderBaseRepositoryImpl(
         version = list[0].first.version,
         createdAt = list[0].first.createdAt,
         updatedAt = list[0].first.updatedAt,
-        productItemEntities = list.map { item -> item.second }.toMutableList()
+        productItemEntities = list.map { item -> item.second.toProductItem() }.toMutableList()
     )
 
     private fun orderFromList(list: List<Pair<OrderEntity, ProductItemEntity>>): Order = Order(
@@ -84,7 +84,7 @@ class OrderBaseRepositoryImpl(
         version = list[0].first.version,
         createdAt = list[0].first.createdAt,
         updatedAt = list[0].first.updatedAt,
-        productItemEntities = list.map { item -> item.second }.toMutableList()
+        productItemEntities = list.map { item -> item.second.toProductItem() }.toMutableList()
     )
 
     companion object {

@@ -10,17 +10,17 @@ class Order(
     var address: String? = null,
     var status: OrderStatus = OrderStatus.NEW,
     var version: Long = 0,
-    var productItemEntities: MutableList<ProductItemEntity> = arrayListOf(),
+    var productItemEntities: MutableList<ProductItem> = arrayListOf(),
     var createdAt: LocalDateTime? = null,
     var updatedAt: LocalDateTime? = null
 ) {
 
-    fun addProductItem(productItemEntity: ProductItemEntity): Order {
+    fun addProductItem(productItemEntity: ProductItem): Order {
         productItemEntities.add(productItemEntity)
         return this
     }
 
-    fun addProductItems(items: List<ProductItemEntity>): Order {
+    fun addProductItems(items: List<ProductItem>): Order {
         productItemEntities.addAll(items)
         return this
     }
