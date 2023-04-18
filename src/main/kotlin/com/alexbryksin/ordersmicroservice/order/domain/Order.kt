@@ -52,6 +52,16 @@ class Order(
         status = OrderStatus.COMPLETED
     }
 
+    fun incVersion(): Order {
+        version++
+        return this
+    }
+
+    fun decVersion(): Order {
+        version--
+        return this
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
