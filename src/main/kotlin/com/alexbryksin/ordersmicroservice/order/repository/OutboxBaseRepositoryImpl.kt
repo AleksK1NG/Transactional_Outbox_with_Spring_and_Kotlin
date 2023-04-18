@@ -9,6 +9,7 @@ import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.slf4j.LoggerFactory
+import org.springframework.data.r2dbc.core.R2dbcEntityTemplate
 import org.springframework.r2dbc.core.DatabaseClient
 import org.springframework.r2dbc.core.flow
 import org.springframework.transaction.reactive.TransactionalOperator
@@ -17,7 +18,8 @@ import java.util.*
 
 class OutboxBaseRepositoryImpl(
     private val dbClient: DatabaseClient,
-    private val txOp: TransactionalOperator
+    private val txOp: TransactionalOperator,
+    private val entityTemplate: R2dbcEntityTemplate
 ) : OutboxBaseRepository {
     override suspend fun deleteOutboxRecordByID(id: UUID, callback: suspend () -> Unit): Long = withContext(Dispatchers.IO) {
         withTimeout(DELETE_OUTBOX_RECORD_TIMEOUT_MILLIS) {

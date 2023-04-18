@@ -16,7 +16,7 @@ import java.util.*
 @Table(schema = "microservices", name = "product_items")
 data class ProductItemEntity(
     @Id @Column("id") var id: UUID? = null,
-    @Column("order_id") var orderId: UUID? = null,
+    @Column("order_id") var orderId: UUID,
     @Column("title") var title: String?,
     @Column("price") var price: BigDecimal = BigDecimal.ZERO,
     @Column("quantity") var quantity: Long = 0,
@@ -41,7 +41,7 @@ data class ProductItemEntity(
 fun ProductItemEntity.Companion.of(row: Row) = ProductItemEntity(
     id = row["productId", UUID::class.java],
     title = row["title", String::class.java],
-    orderId = row["order_id", UUID::class.java],
+    orderId = row["order_id", UUID::class.java]!!,
     price = row["price", BigDecimal::class.java] ?: BigDecimal.ZERO,
     quantity = row["quantity", BigInteger::class.java]?.toLong() ?: 0,
 )
@@ -49,7 +49,7 @@ fun ProductItemEntity.Companion.of(row: Row) = ProductItemEntity(
 
 fun ProductItemEntity.Companion.of(productItem: ProductItem): ProductItemEntity = ProductItemEntity(
     id = productItem.id,
-    orderId = productItem.orderId,
+    orderId = productItem.orderId!!,
     title = productItem.title,
     price = productItem.price,
     quantity = productItem.quantity,

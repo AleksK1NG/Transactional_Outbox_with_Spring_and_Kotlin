@@ -16,12 +16,11 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.slf4j.LoggerFactory
 import org.springframework.kafka.annotation.KafkaListener
 import org.springframework.kafka.support.Acknowledgment
-import org.springframework.stereotype.Component
 import reactor.util.retry.Retry
 import java.time.Duration
 
 
-@Component
+//@Component
 class OutboxConsumer(
     private val kafkaTopicsConfiguration: KafkaTopicsConfiguration,
     private val serializer: Serializer,

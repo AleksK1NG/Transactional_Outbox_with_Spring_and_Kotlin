@@ -4,11 +4,17 @@ import com.alexbryksin.ordersmicroservice.order.domain.Order
 import com.alexbryksin.ordersmicroservice.order.domain.OrderEntity
 import com.alexbryksin.ordersmicroservice.order.domain.ProductItemEntity
 import com.alexbryksin.ordersmicroservice.order.domain.of
+import com.alexbryksin.ordersmicroservice.order.exceptions.OrderNotFoundException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.reactor.awaitSingle
+import kotlinx.coroutines.reactor.awaitSingleOrNull
+import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate
+import org.springframework.data.relational.core.query.Criteria
+import org.springframework.data.relational.core.query.Query
 import org.springframework.r2dbc.core.DatabaseClient
 import org.springframework.r2dbc.core.flow
 import org.springframework.stereotype.Repository
@@ -19,7 +25,7 @@ import java.util.*
 @Repository
 class OrderBaseRepositoryImpl(
     private val dbClient: DatabaseClient,
-    private val entityTemplate: R2dbcEntityTemplate
+    private val entityTemplate: R2dbcEntityTemplate,
 ) : OrderBaseRepository {
 
     override suspend fun updateOrderVersion(id: UUID, newVersion: Long): Long = coroutineScope {
@@ -62,6 +68,11 @@ class OrderBaseRepositoryImpl(
             .collectList()
             .map { orderFromMutableList(it) }
             .doOnNext { log.info("loaded order: $it") }
+    }
+
+    override suspend fun findOrderByID(id: UUID): Order = withContext(Dispatchers.IO) {
+        val query = Query.query(Criteria.where("id").`is`(id))
+        entityTemplate.selectOne(query, OrderEntity::class.java).awaitSingleOrNull()?.toOrder() ?: throw OrderNotFoundException(id)
     }
 
 
