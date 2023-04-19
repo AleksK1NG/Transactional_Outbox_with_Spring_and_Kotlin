@@ -54,6 +54,7 @@ class OrderConsumer(
             log.info("process record: ${String(consumerRecord.value())}")
             val outboxRecord = serializer.deserialize(consumerRecord.value(), OutboxRecord::class.java)
             log.info("deserialized outbox record: $outboxRecord")
+            log.info("deserialized outbox record data >>>>>>>>>>>>>>>>: ${String(outboxRecord.data)}")
             val deserializedEvent = deserializeEventByType(outboxRecord)
             log.info("deserializedEvent: $deserializedEvent")
             process(deserializedEvent)
@@ -81,7 +82,7 @@ class OrderConsumer(
             log.info("deserialized outbox record: $outboxRecord")
             val deserializedEvent = deserializeEventByType(outboxRecord)
             log.info("deserializedEvent: $deserializedEvent")
-
+            process(deserializedEvent)
             ack.acknowledge()
             log.info("committed retry record >>>>>>>>>>>>>> topic: ${consumerRecord.topic()} offset: ${consumerRecord.offset()} partition: ${consumerRecord.partition()}")
         } catch (ex: Exception) {

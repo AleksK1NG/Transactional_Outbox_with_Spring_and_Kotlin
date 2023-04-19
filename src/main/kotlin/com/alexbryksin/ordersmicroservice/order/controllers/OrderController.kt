@@ -36,7 +36,7 @@ class OrderController(private val orderService: OrderService) {
 
     @PutMapping(path = ["/add/{id}"])
     suspend fun addProductItem(@PathVariable id: UUID, @RequestBody dto: CreateProductItemDTO) = coroutineScope {
-        orderService.addOrderItem(dto.toProductItem(id)).let { ResponseEntity.ok(it) }
+        orderService.addProductItem(dto.toProductItem(id)).let { ResponseEntity.ok(it) }
             .also { log.info("addProductItem result: $it") }
     }
 
