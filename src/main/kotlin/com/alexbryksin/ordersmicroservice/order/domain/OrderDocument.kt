@@ -45,18 +45,30 @@ data class OrderDocument(
 
     fun submit() {
         if (productItemEntities.isEmpty()) throw OrderHasNotProductItemsException(UUID.fromString(id))
-        if (status == OrderStatus.COMPLETED || status == OrderStatus.CANCELLED) throw SubmitOrderException(UUID.fromString(id), status)
+        if (status == OrderStatus.COMPLETED || status == OrderStatus.CANCELLED) throw SubmitOrderException(
+            UUID.fromString(
+                id
+            ), status
+        )
         if (status != OrderStatus.PAID) throw OrderNotPaidException(UUID.fromString(id))
         status = OrderStatus.SUBMITTED
     }
 
     fun cancel() {
-        if (status == OrderStatus.COMPLETED || status == OrderStatus.CANCELLED) throw CancelOrderException(UUID.fromString(id), status)
+        if (status == OrderStatus.COMPLETED || status == OrderStatus.CANCELLED) throw CancelOrderException(
+            UUID.fromString(
+                id
+            ), status
+        )
         status = OrderStatus.CANCELLED
     }
 
     fun complete() {
-        if (status == OrderStatus.CANCELLED || status != OrderStatus.SUBMITTED) throw CompleteOrderException(UUID.fromString(id), status)
+        if (status == OrderStatus.CANCELLED || status != OrderStatus.SUBMITTED) throw CompleteOrderException(
+            UUID.fromString(
+                id
+            ), status
+        )
         status = OrderStatus.COMPLETED
     }
 
@@ -66,6 +78,7 @@ data class OrderDocument(
         address = this.address,
         status = this.status,
         version = this.version,
+        productItemEntities = this.productItemEntities,
         createdAt = this.createdAt,
         updatedAt = this.updatedAt
     )
@@ -80,6 +93,7 @@ fun OrderDocument.Companion.of(order: Order): OrderDocument = OrderDocument(
     address = order.address,
     status = order.status,
     version = order.version,
+    productItemEntities = order.productItemEntities,
     createdAt = order.createdAt,
     updatedAt = order.updatedAt
 )
