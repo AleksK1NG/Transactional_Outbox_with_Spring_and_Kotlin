@@ -34,6 +34,7 @@ class OrderConsumer(
     private val kafkaTopicsConfiguration: KafkaTopicsConfiguration,
     private val serializer: Serializer,
     private val eventsPublisher: EventsPublisher,
+    private val orderEventProcessor: OrderEventProcessor
 ) {
 
     @KafkaListener(
@@ -55,6 +56,7 @@ class OrderConsumer(
             log.info("deserialized outbox record: $outboxRecord")
             val deserializedEvent = deserializeEventByType(outboxRecord)
             log.info("deserializedEvent: $deserializedEvent")
+            process(deserializedEvent)
             ack.acknowledge()
             log.info("committed record topic: ${consumerRecord.topic()} offset: ${consumerRecord.offset()} partition: ${consumerRecord.partition()}")
         } catch (ex: Exception) {
@@ -121,6 +123,17 @@ class OrderConsumer(
         val headersMap = mutableMapOf("retryCount" to retryCount.toString().toByteArray())
         record.headers().forEach { headersMap[it.key()] = it.value() }
         eventsPublisher.publishRetryRecord(topic, record.key(), record.value(), headersMap)
+    }
+
+    private suspend fun process(event: Any) = when(event) {
+        is OrderCreatedEvent -> orderEventProcessor.on(event)
+        is ProductItemAddedEvent -> orderEventProcessor.on(event)
+        is ProductItemRemovedEvent -> orderEventProcessor.on(event)
+        is OrderPaidEvent -> orderEventProcessor.on(event)
+        is OrderCancelledEvent -> orderEventProcessor.on(event)
+        is OrderSubmittedEvent -> orderEventProcessor.on(event)
+        is OrderCompletedEvent -> orderEventProcessor.on(event)
+        else -> throw UnknownEventTypeException(event.toString())
     }
 
 

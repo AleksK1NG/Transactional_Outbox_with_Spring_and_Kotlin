@@ -47,9 +47,10 @@ class OrderServiceImpl(
                 val productItemsList = order.productItemEntities.map { item -> ProductItemEntity.of(item.copy(orderId = it.id)) }
                 val insertedItems = productItemRepository.insertAll(productItemsList).toList()
 
-                val record = outboxRecord(it.id.toString(), it.version, OrderCreatedEvent(it.toOrder()), ORDER_CREATED_EVENT)
+                val orderWithProducts = it.toOrder().addProductItems(insertedItems.map { item -> item.toProductItem() })
+                val record = outboxRecord(orderWithProducts.id.toString(), orderWithProducts.version, OrderCreatedEvent(orderWithProducts), ORDER_CREATED_EVENT)
                 outboxRepository.save(record).also { savedRecord -> log.info("saved outbox record: $savedRecord") }
-                Pair(it.toOrder().addProductItems(insertedItems.map { item -> item.toProductItem() }), record)
+                Pair(orderWithProducts, record)
             }
         }
 
