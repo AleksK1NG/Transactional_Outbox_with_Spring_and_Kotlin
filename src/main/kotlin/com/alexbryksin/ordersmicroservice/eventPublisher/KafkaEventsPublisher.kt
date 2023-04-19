@@ -1,7 +1,9 @@
 package com.alexbryksin.ordersmicroservice.eventPublisher
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.future.await
+import kotlinx.coroutines.withContext
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.slf4j.LoggerFactory
 import org.springframework.kafka.core.KafkaTemplate
@@ -14,40 +16,48 @@ class KafkaEventsPublisher(
     private val objectMapper: ObjectMapper,
 ) : EventsPublisher {
 
-    override suspend fun publish(topic: String?, data: Any) {
+    override suspend fun publish(topic: String?, data: Any) = withContext(Dispatchers.IO) {
         val msg = ProducerRecord<String, ByteArray>(topic, objectMapper.writeValueAsBytes(data))
         val result = kafkaTemplate.send(msg).await()
         log.info("publish sendResult: $result")
     }
 
-    override suspend fun publish(topic: String?, key: String, data: Any) {
+    override suspend fun publish(topic: String?, key: String, data: Any) = withContext(Dispatchers.IO) {
         val msg = ProducerRecord(topic, key, objectMapper.writeValueAsBytes(data))
         val result = kafkaTemplate.send(msg).await()
         log.info("publish sendResult: $result")
     }
 
-    override suspend fun publish(topic: String?, data: Any, headers: Map<String, ByteArray>) {
-        val msg = ProducerRecord<String, ByteArray>(topic, objectMapper.writeValueAsBytes(data))
-        headers.forEach { (key, value) -> msg.headers().add(key, value) }
-        val result = kafkaTemplate.send(msg).await()
-        log.info("publish sendResult: $result")
-    }
+    override suspend fun publish(topic: String?, data: Any, headers: Map<String, ByteArray>) =
+        withContext(Dispatchers.IO) {
+            val msg = ProducerRecord<String, ByteArray>(topic, objectMapper.writeValueAsBytes(data))
+            headers.forEach { (key, value) -> msg.headers().add(key, value) }
+            val result = kafkaTemplate.send(msg).await()
+            log.info("publish sendResult: $result")
+        }
 
-    override suspend fun publish(topic: String?, key: String, data: Any, headers: Map<String, ByteArray>) {
-        val msg = ProducerRecord(topic, key, objectMapper.writeValueAsBytes(data))
-        headers.forEach { (key, value) -> msg.headers().add(key, value) }
-        val result = kafkaTemplate.send(msg).await()
-        log.info("publish sendResult: $result")
-    }
+    override suspend fun publish(topic: String?, key: String, data: Any, headers: Map<String, ByteArray>) =
+        withContext(Dispatchers.IO) {
+            val msg = ProducerRecord(topic, key, objectMapper.writeValueAsBytes(data))
+            headers.forEach { (key, value) -> msg.headers().add(key, value) }
+            val result = kafkaTemplate.send(msg).await()
+            log.info("publish sendResult: $result")
+        }
 
-    override suspend fun publishRetryRecord(topic: String?, data: ByteArray, headers: Map<String, ByteArray>) {
-        val msg = ProducerRecord<String, ByteArray>(topic, data)
-        headers.forEach { (key, value) -> msg.headers().add(key, value) }
-        val result = kafkaTemplate.send(msg).await()
-        log.info("publish sendResult: $result")
-    }
+    override suspend fun publishRetryRecord(topic: String?, data: ByteArray, headers: Map<String, ByteArray>) =
+        withContext(Dispatchers.IO) {
+            val msg = ProducerRecord<String, ByteArray>(topic, data)
+            headers.forEach { (key, value) -> msg.headers().add(key, value) }
+            val result = kafkaTemplate.send(msg).await()
+            log.info("publish sendResult: $result")
+        }
 
-    override suspend fun publishRetryRecord(topic: String?, key: String, data: ByteArray, headers: Map<String, ByteArray>) {
+    override suspend fun publishRetryRecord(
+        topic: String?,
+        key: String,
+        data: ByteArray,
+        headers: Map<String, ByteArray>
+    ) = withContext(Dispatchers.IO) {
         val msg = ProducerRecord(topic, key, data)
         headers.forEach { (key, value) -> msg.headers().add(key, value) }
         val result = kafkaTemplate.send(msg).await()
