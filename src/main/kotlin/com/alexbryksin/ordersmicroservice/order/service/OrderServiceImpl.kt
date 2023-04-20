@@ -3,7 +3,10 @@ package com.alexbryksin.ordersmicroservice.order.service
 import com.alexbryksin.ordersmicroservice.bankAccount.exceptions.UnknownEventTypeException
 import com.alexbryksin.ordersmicroservice.configuration.KafkaTopicsConfiguration
 import com.alexbryksin.ordersmicroservice.eventPublisher.EventsPublisher
-import com.alexbryksin.ordersmicroservice.order.domain.*
+import com.alexbryksin.ordersmicroservice.order.domain.Order
+import com.alexbryksin.ordersmicroservice.order.domain.OutboxRecord
+import com.alexbryksin.ordersmicroservice.order.domain.ProductItemEntity
+import com.alexbryksin.ordersmicroservice.order.domain.listOf
 import com.alexbryksin.ordersmicroservice.order.events.*
 import com.alexbryksin.ordersmicroservice.order.events.OrderCancelledEvent.Companion.ORDER_CANCELLED_EVENT
 import com.alexbryksin.ordersmicroservice.order.events.OrderCompletedEvent.Companion.ORDER_COMPLETED_EVENT
@@ -43,12 +46,11 @@ class OrderServiceImpl(
 
     override suspend fun createOrder(order: Order): Order = coroutineScope {
         val resultPair = txOp.executeAndAwait {
-            orderRepository.save(OrderEntity.of(order)).toOrder().let {
-                val productItemsList = order.productItemEntities
-                    .map { item -> ProductItemEntity.of(item.copy(orderId = it.id)) }
-                val insertedItems = productItemRepository.insertAll(productItemsList).toList()
-
+            orderRepository.insert(order).let {
+                val productItemsEntityList = ProductItemEntity.listOf(order.productItemEntities, it.id)
+                val insertedItems = productItemRepository.insertAll(productItemsEntityList).toList()
                 it.addProductItems(insertedItems.map { item -> item.toProductItem() })
+
                 val record = outboxRecord(
                     it.id.toString(),
                     it.version,
@@ -121,7 +123,7 @@ class OrderServiceImpl(
 
             orderRepository.getOrderWithProductItemsByID(id).let {
                 it.pay()
-                orderRepository.save(OrderEntity.of(it)).toOrder().let { savedOrder ->
+                orderRepository.update(it).let { savedOrder ->
                     val record = outboxRecord(
                         savedOrder.id.toString(),
                         savedOrder.version,
@@ -142,7 +144,7 @@ class OrderServiceImpl(
             orderRepository.findOrderByID(id).let {
                 it.cancel()
 
-                orderRepository.save(OrderEntity.of(it)).toOrder().let { savedOrder ->
+                orderRepository.update(it).let { savedOrder ->
 
                     val record = outboxRecord(
                         savedOrder.id.toString(),
@@ -165,7 +167,7 @@ class OrderServiceImpl(
         val resultPair = txOp.executeAndAwait {
             orderRepository.getOrderWithProductItemsByID(id).let {
                 it.submit()
-                orderRepository.save(OrderEntity.of(it)).toOrder().let { savedOrder ->
+                orderRepository.update(it).let { savedOrder ->
                     val record = outboxRecord(
                         savedOrder.id.toString(),
                         savedOrder.version,
@@ -185,7 +187,7 @@ class OrderServiceImpl(
         val resultPair = txOp.executeAndAwait {
             orderRepository.findOrderByID(id).let {
                 it.complete()
-                orderRepository.save(OrderEntity.of(it)).toOrder().let { savedOrder ->
+                orderRepository.update(it).let { savedOrder ->
                     val event = outboxRecord(
                         savedOrder.id.toString(),
                         savedOrder.version,

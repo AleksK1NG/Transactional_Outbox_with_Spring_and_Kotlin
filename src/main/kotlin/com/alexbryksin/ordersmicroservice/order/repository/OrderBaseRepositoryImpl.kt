@@ -72,7 +72,18 @@ class OrderBaseRepositoryImpl(
 
     override suspend fun findOrderByID(id: UUID): Order = withContext(Dispatchers.IO) {
         val query = Query.query(Criteria.where("id").`is`(id))
-        entityTemplate.selectOne(query, OrderEntity::class.java).awaitSingleOrNull()?.toOrder() ?: throw OrderNotFoundException(id)
+        entityTemplate.selectOne(query, OrderEntity::class.java).awaitSingleOrNull()?.toOrder()
+            ?: throw OrderNotFoundException(id)
+    }
+
+    override suspend fun insert(order: Order): Order = withContext(Dispatchers.IO) {
+        entityTemplate.insert(OrderEntity.of(order)).awaitSingle().toOrder()
+            .also { log.info("inserted order: $it") }
+    }
+
+    override suspend fun update(order: Order): Order = withContext(Dispatchers.IO) {
+        entityTemplate.update(OrderEntity.of(order)).awaitSingle().toOrder()
+            .also { log.info("updated order: $it") }
     }
 
 
