@@ -78,7 +78,7 @@ data class OrderDocument(
         address = this.address,
         status = this.status,
         version = this.version,
-        productItemEntities = this.productItemEntities,
+        productItems = this.productItemEntities,
         createdAt = this.createdAt,
         updatedAt = this.updatedAt
     )
@@ -93,7 +93,7 @@ fun OrderDocument.Companion.of(order: Order): OrderDocument = OrderDocument(
     address = order.address,
     status = order.status,
     version = order.version,
-    productItemEntities = order.productItemEntities,
+    productItemEntities = order.productItems,
     createdAt = order.createdAt,
     updatedAt = order.updatedAt
 )

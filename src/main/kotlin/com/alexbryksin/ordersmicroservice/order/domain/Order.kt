@@ -6,37 +6,37 @@ import java.util.*
 
 class Order(
     var id: UUID? = null,
-    var email: String?,
+    var email: String? = null,
     var address: String? = null,
     var status: OrderStatus = OrderStatus.NEW,
     var version: Long = 0,
-    var productItemEntities: MutableList<ProductItem> = arrayListOf(),
+    val productItems: MutableList<ProductItem> = arrayListOf(),
     var createdAt: LocalDateTime? = null,
     var updatedAt: LocalDateTime? = null
 ) {
 
     fun addProductItem(productItemEntity: ProductItem): Order {
-        productItemEntities.add(productItemEntity)
+        productItems.add(productItemEntity)
         return this
     }
 
     fun addProductItems(items: List<ProductItem>): Order {
-        productItemEntities.addAll(items)
+        productItems.addAll(items)
         return this
     }
 
     fun removeProductItem(id: UUID): Order {
-        productItemEntities.removeIf { it.id == id }
+        productItems.removeIf { it.id == id }
         return this
     }
 
     fun pay() {
-        if (productItemEntities.isEmpty()) throw OrderHasNotProductItemsException(id)
+        if (productItems.isEmpty()) throw OrderHasNotProductItemsException(id)
         status = OrderStatus.PAID
     }
 
     fun submit() {
-        if (productItemEntities.isEmpty()) throw OrderHasNotProductItemsException(id)
+        if (productItems.isEmpty()) throw OrderHasNotProductItemsException(id)
         if (status == OrderStatus.COMPLETED || status == OrderStatus.CANCELLED) throw SubmitOrderException(id, status)
         if (status != OrderStatus.PAID) throw OrderNotPaidException(id)
         status = OrderStatus.SUBMITTED
@@ -76,7 +76,7 @@ class Order(
     }
 
     override fun toString(): String {
-        return "Order(id=$id, email=$email, address=$address, status=$status, version=$version, productItems=${productItemEntities.size}, createdAt=$createdAt, updatedAt=$updatedAt)"
+        return "Order(id=$id, email=$email, address=$address, status=$status, version=$version, productItems=${productItems.size}, createdAt=$createdAt, updatedAt=$updatedAt)"
     }
 
     companion object

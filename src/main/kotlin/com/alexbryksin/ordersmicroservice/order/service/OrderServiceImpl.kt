@@ -15,7 +15,6 @@ import com.alexbryksin.ordersmicroservice.order.events.OrderPaidEvent.Companion.
 import com.alexbryksin.ordersmicroservice.order.events.OrderSubmittedEvent.Companion.ORDER_SUBMITTED_EVENT
 import com.alexbryksin.ordersmicroservice.order.events.ProductItemAddedEvent.Companion.PRODUCT_ITEM_ADDED_EVENT
 import com.alexbryksin.ordersmicroservice.order.events.ProductItemRemovedEvent.Companion.PRODUCT_ITEM_REMOVED_EVENT
-import com.alexbryksin.ordersmicroservice.order.exceptions.OrderNotFoundException
 import com.alexbryksin.ordersmicroservice.order.repository.OrderOutboxRepository
 import com.alexbryksin.ordersmicroservice.order.repository.OrderRepository
 import com.alexbryksin.ordersmicroservice.order.repository.ProductItemRepository
@@ -45,9 +44,9 @@ class OrderServiceImpl(
 ) : OrderService {
 
     override suspend fun createOrder(order: Order): Order = coroutineScope {
-        val resultPair = txOp.executeAndAwait {
+        txOp.executeAndAwait {
             orderRepository.insert(order).let {
-                val productItemsEntityList = ProductItemEntity.listOf(order.productItemEntities, it.id)
+                val productItemsEntityList = ProductItemEntity.listOf(order.productItems, it.id)
                 val insertedItems = productItemRepository.insertAll(productItemsEntityList).toList()
                 it.addProductItems(insertedItems.map { item -> item.toProductItem() })
 
@@ -59,14 +58,14 @@ class OrderServiceImpl(
                 )
                 Pair(it, outboxRepository.save(record))
             }
+        }.run {
+            publish(second)
+            first
         }
-
-        publish(resultPair.second)
-        resultPair.first
     }
 
     override suspend fun addProductItem(productItemEntity: ProductItemEntity): Unit = coroutineScope {
-        val record = txOp.executeAndAwait {
+        txOp.executeAndAwait {
             orderRepository.findOrderByID(productItemEntity.orderId).let {
 
                 productItemRepository.insert(productItemEntity)
@@ -81,20 +80,17 @@ class OrderServiceImpl(
                 )
 
                 outboxRepository.save(record).let { savedRecord ->
-                    val result = orderRepository.updateOrderVersion(it.id!!, it.version)
-                    log.info("addOrderItem result: $result, version: ${it.version}")
+                    orderRepository.updateOrderVersion(it.id!!, it.version)
+                        .also { result -> log.info("addOrderItem result: $result, version: ${it.version}") }
                     savedRecord
                 }
             }
-        }
-
-        publish(record)
+        }.run { publish(this) }
     }
 
     override suspend fun removeProductItem(orderID: UUID, productItemId: UUID): Unit = coroutineScope {
-        val record = txOp.executeAndAwait {
+        txOp.executeAndAwait {
             orderRepository.findOrderByID(orderID).let {
-
                 productItemRepository.deleteById(productItemId)
 
                 it.incVersion()
@@ -112,17 +108,14 @@ class OrderServiceImpl(
                     savedRecord
                 }
             }
-        }
-
-        publish(record)
+        }.run { publish(this) }
     }
 
     override suspend fun pay(id: UUID, paymentId: String): Order = coroutineScope {
-        val resultPair = txOp.executeAndAwait {
-
-
+        txOp.executeAndAwait {
             orderRepository.getOrderWithProductItemsByID(id).let {
                 it.pay()
+
                 orderRepository.update(it).let { savedOrder ->
                     val record = outboxRecord(
                         savedOrder.id.toString(),
@@ -133,14 +126,14 @@ class OrderServiceImpl(
                     Pair(savedOrder, outboxRepository.save(record))
                 }
             }
+        }.run {
+            publish(second)
+            first
         }
-
-        publish(resultPair.second)
-        resultPair.first
     }
 
     override suspend fun cancel(id: UUID, reason: String?): Order = coroutineScope {
-        val resultPair = txOp.executeAndAwait {
+        txOp.executeAndAwait {
             orderRepository.findOrderByID(id).let {
                 it.cancel()
 
@@ -157,16 +150,17 @@ class OrderServiceImpl(
                 }
 
             }
+        }.run {
+            publish(second)
+            first
         }
-
-        publish(resultPair.second)
-        resultPair.first
     }
 
     override suspend fun submit(id: UUID): Order = coroutineScope {
-        val resultPair = txOp.executeAndAwait {
+        txOp.executeAndAwait {
             orderRepository.getOrderWithProductItemsByID(id).let {
                 it.submit()
+
                 orderRepository.update(it).let { savedOrder ->
                     val record = outboxRecord(
                         savedOrder.id.toString(),
@@ -174,19 +168,20 @@ class OrderServiceImpl(
                         OrderSubmittedEvent.of(savedOrder),
                         ORDER_SUBMITTED_EVENT
                     )
-                    Pair(savedOrder.addProductItems(it.productItemEntities), outboxRepository.save(record))
+                    Pair(savedOrder.addProductItems(it.productItems), outboxRepository.save(record))
                 }
             }
+        }.run {
+            publish(second)
+            first
         }
-
-        publish(resultPair.second)
-        resultPair.first
     }
 
     override suspend fun complete(id: UUID): Order = coroutineScope {
-        val resultPair = txOp.executeAndAwait {
+        txOp.executeAndAwait {
             orderRepository.findOrderByID(id).let {
                 it.complete()
+
                 orderRepository.update(it).let { savedOrder ->
                     val event = outboxRecord(
                         savedOrder.id.toString(),
@@ -198,10 +193,10 @@ class OrderServiceImpl(
                     Pair(savedOrder, outboxRepository.save(event))
                 }
             }
+        }.run {
+            publish(second)
+            first
         }
-
-        publish(resultPair.second)
-        resultPair.first
     }
 
     @Transactional(readOnly = true)
@@ -220,7 +215,7 @@ class OrderServiceImpl(
 
 
     override suspend fun getOrderByID(id: UUID): Order = coroutineScope {
-        orderRepository.findById(id)?.toOrder() ?: throw OrderNotFoundException(id)
+        orderRepository.findOrderByID(id)
     }
 
 
