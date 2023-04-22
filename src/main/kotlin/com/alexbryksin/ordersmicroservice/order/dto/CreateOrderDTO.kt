@@ -13,7 +13,7 @@ data class CreateOrderDTO(
     fun toOrder(): Order = Order(
         email = this.email,
         address = this.address,
-        productItemEntities = this.productItems.map { ProductItem(title = it.title, price = it.price, quantity = it.quantity, id = it.id) }
+        productItems = this.productItems.map { ProductItem(title = it.title, price = it.price, quantity = it.quantity, id = it.id) }
             .toMutableList()
     )
 }

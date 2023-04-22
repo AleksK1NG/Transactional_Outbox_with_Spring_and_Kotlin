@@ -35,7 +35,7 @@ class OrderMongoRepositoryImpl(private val mongoTemplate: ReactiveMongoTemplate)
             .set("address", order.address)
             .set("status", order.status)
             .set("version", order.version)
-            .set("productItemEntities", order.productItemEntities)
+            .set("productItemEntities", order.productItems)
 
         val options = FindAndModifyOptions.options().returnNew(true).upsert(false)
         val updatedOrderDocument = mongoTemplate.findAndModify(query, update, options, OrderDocument::class.java).awaitSingleOrNull()

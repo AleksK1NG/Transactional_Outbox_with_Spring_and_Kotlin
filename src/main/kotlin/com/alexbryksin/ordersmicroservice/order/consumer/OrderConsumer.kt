@@ -54,9 +54,7 @@ class OrderConsumer(
             log.info("process record: ${String(consumerRecord.value())}")
             val outboxRecord = serializer.deserialize(consumerRecord.value(), OutboxRecord::class.java)
             log.info("deserialized outbox record: $outboxRecord")
-            log.info("deserialized outbox record data >>>>>>>>>>>>>>>>: ${String(outboxRecord.data)}")
-            process(deserializeEventByType(outboxRecord))
-            ack.acknowledge()
+            processOutboxRecord(outboxRecord).also { ack.acknowledge() }
             log.info("committed record topic: ${consumerRecord.topic()} offset: ${consumerRecord.offset()} partition: ${consumerRecord.partition()}")
         } catch (ex: Exception) {
             if (ex is SerializationException || ex is UnknownEventTypeException) {
@@ -71,25 +69,33 @@ class OrderConsumer(
     }
 
 
-    @KafkaListener(groupId = "\${kafka.consumer-group-id:order-service-group-id}", topics = ["\${topics.retryTopic.name}"])
+    @KafkaListener(
+        groupId = "\${kafka.consumer-group-id:order-service-group-id}",
+        topics = ["\${topics.retryTopic.name}"]
+    )
     fun processRetry(ack: Acknowledgment, consumerRecord: ConsumerRecord<String, ByteArray>): Unit = runBlocking {
         try {
-            log.info("process retry record >>>>>>>: ${String(consumerRecord.value())}, retryCount: ${getHeader("retryCount", consumerRecord.headers())}")
+            log.info(
+                "process retry record >>>>>>>: ${String(consumerRecord.value())}, retryCount: ${
+                    getHeader(
+                        "retryCount",
+                        consumerRecord.headers()
+                    )
+                }"
+            )
 
             val outboxRecord = serializer.deserialize(consumerRecord.value(), OutboxRecord::class.java)
             log.info("deserialized outbox record: $outboxRecord")
-            val deserializedEvent = deserializeEventByType(outboxRecord)
-            log.info("deserializedEvent: $deserializedEvent")
-            process(deserializedEvent)
-            ack.acknowledge()
+            processOutboxRecord(outboxRecord).also { ack.acknowledge() }
             log.info("committed retry record >>>>>>>>>>>>>> topic: ${consumerRecord.topic()} offset: ${consumerRecord.offset()} partition: ${consumerRecord.partition()}")
         } catch (ex: Exception) {
-            if (ex is SerializationException|| ex is UnknownEventTypeException) {
-                ack.acknowledge().also { log.error("commit not serializable or unknown record: ${String(consumerRecord.value())}") }
+            if (ex is SerializationException || ex is UnknownEventTypeException) {
+                ack.acknowledge()
+                    .also { log.error("commit not serializable or unknown record: ${String(consumerRecord.value())}") }
                 return@runBlocking
             }
 
-            val retryCount = getHeader("retryCount", consumerRecord.headers()).toInt()
+            val retryCount = getHeader(RETRY_COUNT_HEADER, consumerRecord.headers()).toInt()
 
             if (ex is InvalidVersionException) {
                 log.info("processing retry invalid version exception >>>>>>>>>>>>>>>> ${ex.localizedMessage}")
@@ -97,7 +103,7 @@ class OrderConsumer(
                 return@runBlocking
             }
 
-            if (retryCount > 5) {
+            if (retryCount > MAX_RETRY_COUNT) {
                 log.error("retry count exceed, send record to dlq: ${consumerRecord.topic()}")
                 publishRetryTopic(kafkaTopicsConfiguration.deadLetterQueue?.name!!, consumerRecord, retryCount + 1)
                 ack.acknowledge()
@@ -112,42 +118,77 @@ class OrderConsumer(
 
     private suspend fun publishRetryTopic(topic: String, record: ConsumerRecord<String, ByteArray>, retryCount: Int) {
         return mono { publishRetryRecord(topic, record, retryCount) }
-            .retryWhen(Retry.backoff(5, Duration.ofMillis(3000)).filter { it is SerializationException })
+            .retryWhen(Retry.backoff(PUBLISH_RETRY_COUNT, Duration.ofMillis(PUBLISH_RETRY_BACKOFF_DURATION_MILLIS))
+                .filter { it is SerializationException })
             .awaitSingle()
     }
 
 
     private suspend fun publishRetryRecord(topic: String, record: ConsumerRecord<String, ByteArray>, retryCount: Int) {
         log.info("publishing retry record: ${String(record.value())}, retryCount: $retryCount")
-        val headersMap = mutableMapOf("retryCount" to retryCount.toString().toByteArray())
+        val headersMap = mutableMapOf(RETRY_COUNT_HEADER to retryCount.toString().toByteArray())
         record.headers().forEach { headersMap[it.key()] = it.value() }
         eventsPublisher.publishRetryRecord(topic, record.key(), record.value(), headersMap)
     }
 
-    private suspend fun process(event: Any) = when(event) {
-        is OrderCreatedEvent -> orderEventProcessor.on(event)
-        is ProductItemAddedEvent -> orderEventProcessor.on(event)
-        is ProductItemRemovedEvent -> orderEventProcessor.on(event)
-        is OrderPaidEvent -> orderEventProcessor.on(event)
-        is OrderCancelledEvent -> orderEventProcessor.on(event)
-        is OrderSubmittedEvent -> orderEventProcessor.on(event)
-        is OrderCompletedEvent -> orderEventProcessor.on(event)
-        else -> throw UnknownEventTypeException(event.toString())
-    }
+    private suspend fun processOutboxRecord(outboxRecord: OutboxRecord) = when (outboxRecord.eventType) {
+        ORDER_CREATED_EVENT -> orderEventProcessor.on(
+            serializer.deserialize(
+                outboxRecord.data,
+                OrderCreatedEvent::class.java
+            )
+        )
 
+        PRODUCT_ITEM_ADDED_EVENT -> orderEventProcessor.on(
+            serializer.deserialize(
+                outboxRecord.data,
+                ProductItemAddedEvent::class.java
+            )
+        )
 
-    private fun deserializeEventByType(outboxRecord: OutboxRecord): Any = when (outboxRecord.eventType) {
-        ORDER_CREATED_EVENT -> serializer.deserialize(outboxRecord.data, OrderCreatedEvent::class.java)
-        PRODUCT_ITEM_ADDED_EVENT -> serializer.deserialize(outboxRecord.data, ProductItemAddedEvent::class.java)
-        PRODUCT_ITEM_REMOVED_EVENT -> serializer.deserialize(outboxRecord.data, ProductItemRemovedEvent::class.java)
-        ORDER_PAID_EVENT -> serializer.deserialize(outboxRecord.data, OrderPaidEvent::class.java)
-        ORDER_CANCELLED_EVENT -> serializer.deserialize(outboxRecord.data, OrderCancelledEvent::class.java)
-        ORDER_SUBMITTED_EVENT -> serializer.deserialize(outboxRecord.data, OrderSubmittedEvent::class.java)
-        ORDER_COMPLETED_EVENT -> serializer.deserialize(outboxRecord.data, OrderCompletedEvent::class.java)
+        PRODUCT_ITEM_REMOVED_EVENT -> orderEventProcessor.on(
+            serializer.deserialize(
+                outboxRecord.data,
+                ProductItemRemovedEvent::class.java
+            )
+        )
+
+        ORDER_PAID_EVENT -> orderEventProcessor.on(
+            serializer.deserialize(
+                outboxRecord.data,
+                OrderPaidEvent::class.java
+            )
+        )
+
+        ORDER_CANCELLED_EVENT -> orderEventProcessor.on(
+            serializer.deserialize(
+                outboxRecord.data,
+                OrderCancelledEvent::class.java
+            )
+        )
+
+        ORDER_SUBMITTED_EVENT -> orderEventProcessor.on(
+            serializer.deserialize(
+                outboxRecord.data,
+                OrderSubmittedEvent::class.java
+            )
+        )
+
+        ORDER_COMPLETED_EVENT -> orderEventProcessor.on(
+            serializer.deserialize(
+                outboxRecord.data,
+                OrderCompletedEvent::class.java
+            )
+        )
+
         else -> throw UnknownEventTypeException(outboxRecord.eventType)
     }
 
     companion object {
         private val log = LoggerFactory.getLogger(OutboxConsumer::class.java)
+        const val RETRY_COUNT_HEADER = "retryCount"
+        const val MAX_RETRY_COUNT = 5
+        const val PUBLISH_RETRY_COUNT = 5L
+        const val PUBLISH_RETRY_BACKOFF_DURATION_MILLIS = 3000L
     }
 }
