@@ -2,6 +2,8 @@ package com.alexbryksin.ordersmicroservice.order.repository
 
 import com.alexbryksin.ordersmicroservice.order.domain.Order
 import com.alexbryksin.ordersmicroservice.order.domain.OrderEntity
+import com.alexbryksin.ordersmicroservice.order.domain.OrderEntity.Companion.ID
+import com.alexbryksin.ordersmicroservice.order.domain.OrderEntity.Companion.VERSION
 import com.alexbryksin.ordersmicroservice.order.domain.ProductItemEntity
 import com.alexbryksin.ordersmicroservice.order.domain.of
 import com.alexbryksin.ordersmicroservice.order.exceptions.OrderNotFoundException
@@ -30,8 +32,8 @@ class OrderBaseRepositoryImpl(
 
     override suspend fun updateOrderVersion(id: UUID, newVersion: Long): Long = coroutineScope {
         dbClient.sql("UPDATE microservices.orders SET version = (version + 1) WHERE id = :id AND version = :version")
-            .bind("id", id)
-            .bind("version", newVersion - 1)
+            .bind(ID, id)
+            .bind(VERSION, newVersion - 1)
             .fetch()
             .rowsUpdated()
             .awaitSingle()
@@ -46,7 +48,7 @@ class OrderBaseRepositoryImpl(
             |LEFT JOIN microservices.product_items pi on o.id = pi.order_id 
             |WHERE o.id = :id""".trimMargin()
         )
-            .bind("id", id)
+            .bind(ID, id)
             .map { row, _ -> Pair(OrderEntity.of(row), ProductItemEntity.of(row)) }
             .flow()
             .toList()
@@ -62,7 +64,7 @@ class OrderBaseRepositoryImpl(
             |LEFT JOIN microservices.product_items pi on o.id = pi.order_id 
             |WHERE o.id = :id""".trimMargin()
         )
-            .bind("id", id)
+            .bind(ID, id)
             .map { row, _ -> Pair(OrderEntity.of(row), ProductItemEntity.of(row)) }
             .all()
             .collectList()
@@ -71,7 +73,7 @@ class OrderBaseRepositoryImpl(
     }
 
     override suspend fun findOrderByID(id: UUID): Order = withContext(Dispatchers.IO) {
-        val query = Query.query(Criteria.where("id").`is`(id))
+        val query = Query.query(Criteria.where(ID).`is`(id))
         entityTemplate.selectOne(query, OrderEntity::class.java).awaitSingleOrNull()?.toOrder()
             ?: throw OrderNotFoundException(id)
     }

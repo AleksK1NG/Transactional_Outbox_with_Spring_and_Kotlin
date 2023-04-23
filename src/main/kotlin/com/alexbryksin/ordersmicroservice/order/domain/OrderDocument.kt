@@ -12,39 +12,39 @@ import java.util.*
 
 @Document(collection = "orders")
 data class OrderDocument(
-    @Id @Field(name = "id") var id: String? = null,
-    @Field(name = "email") var email: String?,
-    @Field(name = "address") var address: String? = null,
-    @Field(name = "status") var status: OrderStatus = OrderStatus.NEW,
-    @Field(name = "version") var version: Long = 0,
-    @Field(name = "productItems") val productItemEntities: MutableList<ProductItem> = arrayListOf(),
-    @CreatedDate @Field(name = "createdAt") var createdAt: LocalDateTime? = null,
-    @LastModifiedDate @Field(name = "updatedAt") var updatedAt: LocalDateTime? = null
+    @Id @Field(name = ID) var id: String? = null,
+    @Field(name = EMAIL) var email: String?,
+    @Field(name = ADDRESS) var address: String? = null,
+    @Field(name = STATUS) var status: OrderStatus = OrderStatus.NEW,
+    @Field(name = VERSION) var version: Long = 0,
+    @Field(name = PRODUCT_ITEMS) val productItems: MutableList<ProductItem> = arrayListOf(),
+    @CreatedDate @Field(name = CREATED_AT) var createdAt: LocalDateTime? = null,
+    @LastModifiedDate @Field(name = UPDATED_AT) var updatedAt: LocalDateTime? = null
 ) {
 
 
     fun addProductItem(productItem: ProductItem): OrderDocument {
-        productItemEntities.add(productItem)
+        productItems.add(productItem)
         return this
     }
 
     fun addProductItems(items: List<ProductItem>): OrderDocument {
-        productItemEntities.addAll(items)
+        productItems.addAll(items)
         return this
     }
 
     fun removeProductItem(id: UUID): OrderDocument {
-        productItemEntities.removeIf { it.id == id }
+        productItems.removeIf { it.id == id }
         return this
     }
 
     fun pay() {
-        if (productItemEntities.isEmpty()) throw OrderHasNotProductItemsException(UUID.fromString(id))
+        if (productItems.isEmpty()) throw OrderHasNotProductItemsException(UUID.fromString(id))
         status = OrderStatus.PAID
     }
 
     fun submit() {
-        if (productItemEntities.isEmpty()) throw OrderHasNotProductItemsException(UUID.fromString(id))
+        if (productItems.isEmpty()) throw OrderHasNotProductItemsException(UUID.fromString(id))
         if (status == OrderStatus.COMPLETED || status == OrderStatus.CANCELLED) throw SubmitOrderException(
             UUID.fromString(
                 id
@@ -78,12 +78,21 @@ data class OrderDocument(
         address = this.address,
         status = this.status,
         version = this.version,
-        productItems = this.productItemEntities,
+        productItems = this.productItems,
         createdAt = this.createdAt,
         updatedAt = this.updatedAt
     )
 
-    companion object
+    companion object {
+        const val ID = "id"
+        const val EMAIL = "email"
+        const val ADDRESS = "address"
+        const val STATUS = "status"
+        const val VERSION = "version"
+        const val PRODUCT_ITEMS = "productItems"
+        const val CREATED_AT = "createdAt"
+        const val UPDATED_AT = "updatedAt"
+    }
 }
 
 
@@ -93,7 +102,7 @@ fun OrderDocument.Companion.of(order: Order): OrderDocument = OrderDocument(
     address = order.address,
     status = order.status,
     version = order.version,
-    productItemEntities = order.productItems,
+    productItems = order.productItems,
     createdAt = order.createdAt,
     updatedAt = order.updatedAt
 )

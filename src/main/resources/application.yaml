@@ -4,7 +4,7 @@ server:
 
 spring:
   application:
-    name: product-service
+    name: order-microservice
 
   r2dbc:
     url: r2dbc:postgresql://localhost:5432/microservices
@@ -42,6 +42,7 @@ springdoc:
 schedulers:
   outbox:
     enable: false
+    initialDelayMillis: 3000
 
 management:
   tracing:

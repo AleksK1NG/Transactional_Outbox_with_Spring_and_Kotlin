@@ -4,6 +4,7 @@ import com.alexbryksin.ordersmicroservice.order.dto.*
 import com.alexbryksin.ordersmicroservice.order.service.OrderService
 import kotlinx.coroutines.coroutineScope
 import org.slf4j.LoggerFactory
+import org.springframework.data.domain.PageRequest
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
@@ -15,8 +16,12 @@ import java.util.*
 class OrderController(private val orderService: OrderService) {
 
     @GetMapping
-    suspend fun getOrders() = coroutineScope {
-        ResponseEntity.ok().body("OK").also { log.info("getOrderByID") }
+    suspend fun getOrders(
+        @RequestParam(name = "page", defaultValue = "0") page: Int,
+        @RequestParam(name = "size", defaultValue = "20") size: Int,
+    ) = coroutineScope {
+        ResponseEntity.ok().body(orderService.getAllOrders(PageRequest.of(page, size)).map { OrderSuccessResponse.of(it) })
+            .also { log.info("getOrderByID") }
     }
 
     @GetMapping(path = ["{id}"])

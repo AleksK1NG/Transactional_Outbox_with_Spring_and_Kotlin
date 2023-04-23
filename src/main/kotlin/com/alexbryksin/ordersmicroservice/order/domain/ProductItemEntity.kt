@@ -58,5 +58,5 @@ fun ProductItemEntity.Companion.of(productItem: ProductItem): ProductItemEntity 
     updatedAt = productItem.updatedAt
 )
 
-fun ProductItemEntity.Companion.listOf(productItems: List<ProductItem>, orderId: UUID?) = productItems
+fun ProductItemEntity.Companion.listOf(productItems: List<ProductItem>, orderId: UUID) = productItems
     .map { item -> ProductItemEntity.of(item.copy(orderId = orderId)) }

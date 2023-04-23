@@ -13,15 +13,15 @@ import java.util.*
 
 @Table(schema = "microservices", name = "orders")
 data class OrderEntity(
-    @Id @Column("id") var id: UUID?,
-    @Column("email") var email: String?,
-    @Column("address") var address: String? = null,
-    @Column("status") var status: OrderStatus = OrderStatus.NEW,
-    @Version @Column("version") var version: Long = 0,
-    @CreatedDate @Column("created_at") var createdAt: LocalDateTime? = null,
-    @LastModifiedDate @Column("updated_at") var updatedAt: LocalDateTime? = null
+    @Id @Column(ID) var id: UUID?,
+    @Column(EMAIL) var email: String?,
+    @Column(ADDRESS) var address: String? = null,
+    @Column(STATUS) var status: OrderStatus = OrderStatus.NEW,
+    @Version @Column(VERSION) var version: Long = 0,
+    @CreatedDate @Column(CREATED_AT) var createdAt: LocalDateTime? = null,
+    @LastModifiedDate @Column(UPDATED_AT) var updatedAt: LocalDateTime? = null
 ) {
-    companion object
+
 
     fun toOrder() = Order(
         id = this.id,
@@ -32,6 +32,16 @@ data class OrderEntity(
         createdAt = this.createdAt,
         updatedAt = this.updatedAt
     )
+
+    companion object {
+        const val ID = "id"
+        const val EMAIL = "email"
+        const val ADDRESS = "address"
+        const val STATUS = "status"
+        const val VERSION = "version"
+        const val CREATED_AT = "created_at"
+        const val UPDATED_AT = "updated_at"
+    }
 }
 
 fun OrderEntity.Companion.of(order: Order): OrderEntity = OrderEntity(
@@ -45,11 +55,11 @@ fun OrderEntity.Companion.of(order: Order): OrderEntity = OrderEntity(
 )
 
 fun OrderEntity.Companion.of(row: Row) =  OrderEntity(
-    id = row["id", UUID::class.java],
-    email = row["email", String::class.java],
-    status = OrderStatus.valueOf(row["status", String::class.java] ?: ""),
-    address = row["address", String::class.java]!!,
-    version = row["version", BigInteger::class.java]?.toLong() ?: 0,
-    createdAt = row["created_at", LocalDateTime::class.java],
-    updatedAt = row["updated_at", LocalDateTime::class.java],
+    id = row[ID, UUID::class.java],
+    email = row[EMAIL, String::class.java],
+    status = OrderStatus.valueOf(row[STATUS, String::class.java] ?: ""),
+    address = row[ADDRESS, String::class.java]!!,
+    version = row[VERSION, BigInteger::class.java]?.toLong() ?: 0,
+    createdAt = row[CREATED_AT, LocalDateTime::class.java],
+    updatedAt = row[UPDATED_AT, LocalDateTime::class.java],
 )

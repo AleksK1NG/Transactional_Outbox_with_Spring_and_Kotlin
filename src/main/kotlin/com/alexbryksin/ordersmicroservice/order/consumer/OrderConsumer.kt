@@ -51,10 +51,8 @@ class OrderConsumer(
     )
     fun process(ack: Acknowledgment, consumerRecord: ConsumerRecord<String, ByteArray>) = runBlocking {
         try {
-            log.info("process record: ${String(consumerRecord.value())}")
-            val outboxRecord = serializer.deserialize(consumerRecord.value(), OutboxRecord::class.java)
-            log.info("deserialized outbox record: $outboxRecord")
-            processOutboxRecord(outboxRecord).also { ack.acknowledge() }
+            processOutboxRecord(serializer.deserialize(consumerRecord.value(), OutboxRecord::class.java))
+                .also { ack.acknowledge() }
             log.info("committed record topic: ${consumerRecord.topic()} offset: ${consumerRecord.offset()} partition: ${consumerRecord.partition()}")
         } catch (ex: Exception) {
             if (ex is SerializationException || ex is UnknownEventTypeException) {
@@ -69,24 +67,15 @@ class OrderConsumer(
     }
 
 
-    @KafkaListener(
-        groupId = "\${kafka.consumer-group-id:order-service-group-id}",
-        topics = ["\${topics.retryTopic.name}"]
-    )
+    @KafkaListener(groupId = "\${kafka.consumer-group-id:order-service-group-id}", topics = ["\${topics.retryTopic.name}"])
     fun processRetry(ack: Acknowledgment, consumerRecord: ConsumerRecord<String, ByteArray>): Unit = runBlocking {
         try {
-            log.info(
-                "process retry record >>>>>>>: ${String(consumerRecord.value())}, retryCount: ${
-                    getHeader(
-                        "retryCount",
-                        consumerRecord.headers()
-                    )
-                }"
-            )
-
-            val outboxRecord = serializer.deserialize(consumerRecord.value(), OutboxRecord::class.java)
-            log.info("deserialized outbox record: $outboxRecord")
-            processOutboxRecord(outboxRecord).also { ack.acknowledge() }
+            processOutboxRecord(
+                serializer.deserialize(
+                    consumerRecord.value(),
+                    OutboxRecord::class.java
+                )
+            ).also { ack.acknowledge() }
             log.info("committed retry record >>>>>>>>>>>>>> topic: ${consumerRecord.topic()} offset: ${consumerRecord.offset()} partition: ${consumerRecord.partition()}")
         } catch (ex: Exception) {
             if (ex is SerializationException || ex is UnknownEventTypeException) {

@@ -1,6 +1,7 @@
 package com.alexbryksin.ordersmicroservice.utils.serializer
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
 @Component
@@ -10,6 +11,7 @@ class Serializer(private val objectMapper: ObjectMapper) {
         return try {
             objectMapper.readValue(data, clazz)
         } catch (ex: Exception) {
+            log.error("error while deserializing data: ${ex.localizedMessage}")
             throw SerializationException(ex)
         }
     }
@@ -18,6 +20,7 @@ class Serializer(private val objectMapper: ObjectMapper) {
         return try {
             objectMapper.writeValueAsBytes(data)
         } catch (ex: Exception) {
+            log.error("error while serializing data: ${ex.localizedMessage}")
             throw SerializationException(ex)
         }
     }
@@ -26,7 +29,12 @@ class Serializer(private val objectMapper: ObjectMapper) {
         return try {
             objectMapper.writeValueAsString(data)
         } catch (ex: Exception) {
+            log.error("error while serializing data: ${ex.localizedMessage}")
             throw SerializationException(ex)
         }
+    }
+
+    companion object {
+        private val log = LoggerFactory.getLogger(Serializer::class.java)
     }
 }
