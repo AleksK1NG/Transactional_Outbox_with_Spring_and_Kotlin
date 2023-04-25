@@ -17,9 +17,9 @@ data class OrderSuccessResponse(
 }
 
 fun OrderSuccessResponse.Companion.of(order: Order): OrderSuccessResponse = OrderSuccessResponse(
-    id = order.id.toString(),
-    email = order.email ?: "",
-    address = order.address ?: "",
+    id = order.id,
+    email = order.email,
+    address = order.address,
     status = order.status,
     version = order.version,
     productItems = order.productItems.map { ProductItemSuccessResponse.of(it) }.toList(),

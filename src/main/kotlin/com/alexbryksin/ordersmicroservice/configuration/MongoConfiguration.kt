@@ -46,7 +46,7 @@ class MongoConfiguration(private val mongoTemplate: ReactiveMongoTemplate) {
 
         val orderEmailIndex = mongoTemplate.indexOps(OrderDocument::class.java)
             .ensureIndex(Index().sparse().on("email", Sort.DEFAULT_DIRECTION).unique()).awaitSingle()
-        log.info("orderEmailIndex: $emailIndex")
+        log.info("orderEmailIndex: $orderEmailIndex")
 
         log.info("mongodb initialized")
     }

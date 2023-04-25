@@ -10,7 +10,7 @@ data class OrderCancelledEvent(val orderId: String, override val version: Long, 
 }
 
 fun OrderCancelledEvent.Companion.of(order: Order, reason: String? = ""): OrderCancelledEvent = OrderCancelledEvent(
-    orderId = order.id.toString(),
+    orderId = order.id,
     version = order.version,
     reason = reason
 )

@@ -11,10 +11,10 @@ data class CreateProductItemDTO(
     var quantity: Long = 0,
 ) {
     fun toProductItem(orderId: UUID): ProductItem = ProductItem(
-        id = this.id,
+        id = this.id.toString(),
         title = this.title,
         price = this.price,
         quantity = this.quantity,
-        orderId = orderId
+        orderId = orderId.toString()
     )
 }

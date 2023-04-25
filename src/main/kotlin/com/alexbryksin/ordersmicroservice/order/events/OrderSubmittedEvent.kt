@@ -9,6 +9,6 @@ data class OrderSubmittedEvent(val orderId: String, override val version: Long) 
 }
 
 fun OrderSubmittedEvent.Companion.of(order: Order): OrderSubmittedEvent = OrderSubmittedEvent(
-    orderId = order.id.toString(),
+    orderId = order.id,
     version = order.version
 )

@@ -90,10 +90,10 @@ class OrderBaseRepositoryImpl(
 
 
     private fun orderFromMutableList(list: MutableList<Pair<OrderEntity, ProductItemEntity>>): Order = Order(
-        id = list[0].first.id,
-        email = list[0].first.email,
+        id = list[0].first.id.toString(),
+        email = list[0].first.email ?: "",
         status = list[0].first.status,
-        address = list[0].first.address,
+        address = list[0].first.address ?: "",
         version = list[0].first.version,
         createdAt = list[0].first.createdAt,
         updatedAt = list[0].first.updatedAt,
@@ -101,10 +101,10 @@ class OrderBaseRepositoryImpl(
     )
 
     private fun orderFromList(list: List<Pair<OrderEntity, ProductItemEntity>>): Order = Order(
-        id = list[0].first.id,
-        email = list[0].first.email,
+        id = list[0].first.id.toString(),
+        email = list[0].first.email ?: "",
         status = list[0].first.status,
-        address = list[0].first.address,
+        address = list[0].first.address ?: "",
         version = list[0].first.version,
         createdAt = list[0].first.createdAt,
         updatedAt = list[0].first.updatedAt,

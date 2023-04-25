@@ -5,9 +5,9 @@ import java.time.LocalDateTime
 import java.util.*
 
 class Order(
-    var id: UUID? = null,
-    var email: String? = null,
-    var address: String? = null,
+    var id: String = "",
+    var email: String = "",
+    var address: String = "",
     var status: OrderStatus = OrderStatus.NEW,
     var version: Long = 0,
     val productItems: MutableList<ProductItem> = arrayListOf(),
@@ -25,7 +25,7 @@ class Order(
         return this
     }
 
-    fun removeProductItem(id: UUID): Order {
+    fun removeProductItem(id: String): Order {
         productItems.removeIf { it.id == id }
         return this
     }
@@ -72,7 +72,7 @@ class Order(
     }
 
     override fun hashCode(): Int {
-        return id?.hashCode() ?: 0
+        return id.hashCode()
     }
 
     override fun toString(): String {
@@ -89,4 +89,9 @@ class Order(
         const val CREATED_AT = "createdAt"
         const val UPDATED_AT = "updatedAt"
     }
+}
+
+fun String.toUUID(): UUID? {
+    if (this == "") return null
+    return UUID.fromString(this)
 }

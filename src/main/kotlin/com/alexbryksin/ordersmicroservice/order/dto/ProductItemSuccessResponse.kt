@@ -29,8 +29,8 @@ fun ProductItemSuccessResponse.Companion.of(productItemEntity: ProductItemEntity
 )
 
 fun ProductItemSuccessResponse.Companion.of(productItem: ProductItem): ProductItemSuccessResponse = ProductItemSuccessResponse(
-    id = productItem.id.toString(),
-    orderId = productItem.orderId.toString(),
+    id = productItem.id,
+    orderId = productItem.orderId,
     title = productItem.title,
     price = productItem.price,
     quantity = productItem.quantity,

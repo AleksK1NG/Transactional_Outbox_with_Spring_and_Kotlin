@@ -5,7 +5,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
-import java.util.*
 
 
 @Service
@@ -26,7 +25,7 @@ class OrderEventProcessorImpl(private val orderMongoRepository: OrderMongoReposi
 
     override suspend fun on(productItemRemovedEvent: ProductItemRemovedEvent): Unit = withContext(Dispatchers.IO) {
         orderMongoRepository.getByID(productItemRemovedEvent.orderId).let {
-            it.removeProductItem(UUID.fromString(productItemRemovedEvent.productItemId))
+            it.removeProductItem(productItemRemovedEvent.productItemId)
             it.version = productItemRemovedEvent.version
 
             orderMongoRepository.update(it).also { order -> log.info("productItemRemovedEvent updatedOrder: $order") }

@@ -47,11 +47,11 @@ class OrderServiceImpl(
     override suspend fun createOrder(order: Order): Order = coroutineScope {
         txOp.executeAndAwait {
             orderRepository.insert(order).let {
-                val productItemsEntityList = ProductItemEntity.listOf(order.productItems, it.id!!)
+                val productItemsEntityList = ProductItemEntity.listOf(order.productItems, UUID.fromString(it.id))
                 val insertedItems = productItemRepository.insertAll(productItemsEntityList).toList()
                 it.addProductItems(insertedItems.map { item -> item.toProductItem() })
 
-                val record = outboxRecord(it.id.toString(), it.version, OrderCreatedEvent(it), ORDER_CREATED_EVENT)
+                val record = outboxRecord(it.id, it.version, OrderCreatedEvent(it), ORDER_CREATED_EVENT)
                 Pair(it, outboxRepository.save(record))
             }
         }.run {
@@ -62,19 +62,19 @@ class OrderServiceImpl(
 
     override suspend fun addProductItem(productItem: ProductItem): Unit = coroutineScope {
         txOp.executeAndAwait {
-            orderRepository.findOrderByID(productItem.orderId!!).let { order ->
+            orderRepository.findOrderByID(UUID.fromString(productItem.orderId)).let { order ->
                 order.incVersion()
 
                 productItemRepository.insert(ProductItemEntity.of(productItem)).let { productItemEntity ->
                     val record = outboxRecord(
-                        order.id.toString(),
+                        order.id,
                         order.version,
                         ProductItemAddedEvent.of(order, productItemEntity.toProductItem()),
                         PRODUCT_ITEM_ADDED_EVENT,
                     )
 
                     outboxRepository.save(record).let { savedRecord ->
-                        orderRepository.updateOrderVersion(order.id!!, order.version)
+                        orderRepository.updateOrderVersion(UUID.fromString(order.id), order.version)
                             .also { result -> log.info("addOrderItem result: $result, version: ${order.version}") }
                         savedRecord
                     }
@@ -91,14 +91,14 @@ class OrderServiceImpl(
                 it.incVersion()
 
                 val record = outboxRecord(
-                    it.id.toString(),
+                    it.id,
                     it.version,
                     ProductItemRemovedEvent.of(it, productItemId),
                     PRODUCT_ITEM_REMOVED_EVENT
                 )
 
                 outboxRepository.save(record).let { savedRecord ->
-                    val result = orderRepository.updateOrderVersion(it.id!!, it.version)
+                    val result = orderRepository.updateOrderVersion(UUID.fromString(it.id), it.version)
                     log.info("removeProductItem result: $result, version: ${it.version}")
                     savedRecord
                 }
@@ -113,7 +113,7 @@ class OrderServiceImpl(
 
                 orderRepository.update(it).let { updatedOrder ->
                     val record = outboxRecord(
-                        updatedOrder.id.toString(),
+                        updatedOrder.id,
                         updatedOrder.version,
                         OrderPaidEvent.of(updatedOrder, paymentId),
                         ORDER_PAID_EVENT
@@ -134,7 +134,7 @@ class OrderServiceImpl(
 
                 orderRepository.update(it).let { updatedOrder ->
                     val record = outboxRecord(
-                        updatedOrder.id.toString(),
+                        updatedOrder.id,
                         updatedOrder.version,
                         OrderCancelledEvent.of(updatedOrder, reason),
                         ORDER_CANCELLED_EVENT,
@@ -155,7 +155,7 @@ class OrderServiceImpl(
 
                 orderRepository.update(it).let { updatedOrder ->
                     val record = outboxRecord(
-                        updatedOrder.id.toString(),
+                        updatedOrder.id,
                         updatedOrder.version,
                         OrderSubmittedEvent.of(updatedOrder),
                         ORDER_SUBMITTED_EVENT
@@ -176,7 +176,7 @@ class OrderServiceImpl(
 
                 orderRepository.update(it).let { updatedOrder ->
                     val event = outboxRecord(
-                        updatedOrder.id.toString(),
+                        updatedOrder.id,
                         updatedOrder.version,
                         OrderCompletedEvent.of(updatedOrder),
                         ORDER_COMPLETED_EVENT
