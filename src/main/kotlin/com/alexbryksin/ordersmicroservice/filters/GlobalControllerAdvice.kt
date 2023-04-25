@@ -38,6 +38,7 @@ class GlobalControllerAdvice {
             OrderHasNotProductItemsException::class,
             CancelOrderException::class,
             SubmitOrderException::class,
+            InvalidPaymentIdException::class
         ]
     )
     fun handleOrderException(ex: RuntimeException, request: ServerHttpRequest): ResponseEntity<ErrorHttpResponse> {

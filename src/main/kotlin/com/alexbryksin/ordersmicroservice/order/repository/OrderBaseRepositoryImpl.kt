@@ -42,7 +42,7 @@ class OrderBaseRepositoryImpl(
 
     override suspend fun getOrderWithProductItemsByID(id: UUID): Order = coroutineScope {
         dbClient.sql(
-            """SELECT o.id, o.email, o.status, o.address, o.version, o.created_at, o.updated_at, 
+            """SELECT o.id, o.email, o.status, o.address, o.version, o.payment_id, o.created_at, o.updated_at, 
             |pi.id as productId, pi.price, pi.title, pi.quantity, pi.order_id, pi.version as itemVersion, pi.created_at as itemCreatedAt, pi.updated_at as itemUpdatedAt
             |FROM microservices.orders o 
             |LEFT JOIN microservices.product_items pi on o.id = pi.order_id 
@@ -58,7 +58,7 @@ class OrderBaseRepositoryImpl(
 
     override fun getOrderWithProductItemsByIDMono(id: UUID): Mono<Order> {
         return dbClient.sql(
-            """SELECT o.id, o.email, o.status, o.address, o.version, o.created_at, o.updated_at, 
+            """SELECT o.id, o.email, o.status, o.address, o.version, o.payment_id, o.created_at, o.updated_at, 
             |pi.id as productId, pi.price, pi.title, pi.quantity, pi.order_id
             |FROM microservices.orders o 
             |LEFT JOIN microservices.product_items pi on o.id = pi.order_id 
@@ -95,6 +95,7 @@ class OrderBaseRepositoryImpl(
         status = list[0].first.status,
         address = list[0].first.address ?: "",
         version = list[0].first.version,
+        paymentId = list[0].first.paymentId ?: "",
         createdAt = list[0].first.createdAt,
         updatedAt = list[0].first.updatedAt,
         productItems = list.map { item -> item.second.toProductItem() }.toMutableList()
@@ -106,6 +107,7 @@ class OrderBaseRepositoryImpl(
         status = list[0].first.status,
         address = list[0].first.address ?: "",
         version = list[0].first.version,
+        paymentId = list[0].first.paymentId ?: "",
         createdAt = list[0].first.createdAt,
         updatedAt = list[0].first.updatedAt,
         productItems = list.map { item -> item.second.toProductItem() }.toMutableList()

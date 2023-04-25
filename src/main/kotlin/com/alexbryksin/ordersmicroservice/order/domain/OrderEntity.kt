@@ -16,6 +16,7 @@ data class OrderEntity(
     @Id @Column(ID) var id: UUID?,
     @Column(EMAIL) var email: String?,
     @Column(ADDRESS) var address: String? = null,
+    @Column(PAYMENT_ID) var paymentId: String? = null,
     @Column(STATUS) var status: OrderStatus = OrderStatus.NEW,
     @Version @Column(VERSION) var version: Long = 0,
     @CreatedDate @Column(CREATED_AT) var createdAt: LocalDateTime? = null,
@@ -29,6 +30,7 @@ data class OrderEntity(
         address = this.address ?: "",
         status = this.status,
         version = this.version,
+        paymentId = this.paymentId ?: "",
         createdAt = this.createdAt,
         updatedAt = this.updatedAt
     )
@@ -39,6 +41,7 @@ data class OrderEntity(
         const val ADDRESS = "address"
         const val STATUS = "status"
         const val VERSION = "version"
+        const val PAYMENT_ID = "payment_id"
         const val CREATED_AT = "created_at"
         const val UPDATED_AT = "updated_at"
     }
@@ -50,15 +53,17 @@ fun OrderEntity.Companion.of(order: Order): OrderEntity = OrderEntity(
     address = order.address,
     status = order.status,
     version = order.version,
+    paymentId = order.paymentId,
     createdAt = order.createdAt,
     updatedAt = order.updatedAt
 )
 
-fun OrderEntity.Companion.of(row: Row) =  OrderEntity(
+fun OrderEntity.Companion.of(row: Row) = OrderEntity(
     id = row[ID, UUID::class.java],
     email = row[EMAIL, String::class.java],
     status = OrderStatus.valueOf(row[STATUS, String::class.java] ?: ""),
-    address = row[ADDRESS, String::class.java]!!,
+    address = row[ADDRESS, String::class.java],
+    paymentId = row[PAYMENT_ID, String::class.java],
     version = row[VERSION, BigInteger::class.java]?.toLong() ?: 0,
     createdAt = row[CREATED_AT, LocalDateTime::class.java],
     updatedAt = row[UPDATED_AT, LocalDateTime::class.java],

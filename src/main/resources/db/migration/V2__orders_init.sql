@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS microservices.orders
     id         UUID PRIMARY KEY                  DEFAULT uuid_generate_v4(),
     email      VARCHAR(60) UNIQUE       NOT NULL CHECK ( email <> '' ),
     address    VARCHAR(500)             NOT NULL CHECK ( address <> '' ),
+    payment_id  VARCHAR(255)   UNIQUE,
     status     VARCHAR(20)              NOT NULL CHECK ( status <> '' ),
     version    BIGINT                   NOT NULL DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -5,6 +5,7 @@ import com.alexbryksin.ordersmicroservice.order.domain.OrderDocument
 import com.alexbryksin.ordersmicroservice.order.domain.OrderDocument.Companion.ADDRESS
 import com.alexbryksin.ordersmicroservice.order.domain.OrderDocument.Companion.EMAIL
 import com.alexbryksin.ordersmicroservice.order.domain.OrderDocument.Companion.ID
+import com.alexbryksin.ordersmicroservice.order.domain.OrderDocument.Companion.PAYMENT_ID
 import com.alexbryksin.ordersmicroservice.order.domain.OrderDocument.Companion.PRODUCT_ITEMS
 import com.alexbryksin.ordersmicroservice.order.domain.OrderDocument.Companion.STATUS
 import com.alexbryksin.ordersmicroservice.order.domain.OrderDocument.Companion.VERSION
@@ -37,13 +38,14 @@ class OrderMongoRepositoryImpl(private val mongoTemplate: ReactiveMongoTemplate)
     }
 
     override suspend fun update(order: Order): Order = withContext(Dispatchers.IO) {
-        val query = Query.query(Criteria.where(ID).`is`(order.id.toString()).and(VERSION).`is`(order.version - 1))
+        val query = Query.query(Criteria.where(ID).`is`(order.id).and(VERSION).`is`(order.version - 1))
 
         val update = Update()
             .set(EMAIL, order.email)
             .set(ADDRESS, order.address)
             .set(STATUS, order.status)
             .set(VERSION, order.version)
+            .set(PAYMENT_ID, order.paymentId)
             .set(PRODUCT_ITEMS, order.productItems)
 
         val options = FindAndModifyOptions.options().returnNew(true).upsert(false)
