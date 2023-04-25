@@ -9,6 +9,7 @@ import com.alexbryksin.ordersmicroservice.order.domain.OrderDocument.Companion.P
 import com.alexbryksin.ordersmicroservice.order.domain.OrderDocument.Companion.STATUS
 import com.alexbryksin.ordersmicroservice.order.domain.OrderDocument.Companion.VERSION
 import com.alexbryksin.ordersmicroservice.order.domain.of
+import com.alexbryksin.ordersmicroservice.order.domain.toUUID
 import com.alexbryksin.ordersmicroservice.order.exceptions.OrderNotFoundException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -47,7 +48,7 @@ class OrderMongoRepositoryImpl(private val mongoTemplate: ReactiveMongoTemplate)
 
         val options = FindAndModifyOptions.options().returnNew(true).upsert(false)
         val updatedOrderDocument = mongoTemplate.findAndModify(query, update, options, OrderDocument::class.java)
-            .awaitSingleOrNull() ?: throw OrderNotFoundException(order.id)
+            .awaitSingleOrNull() ?: throw OrderNotFoundException(order.id.toUUID())
 
         updatedOrderDocument.toOrder().also { log.info("updated order: $it") }
     }

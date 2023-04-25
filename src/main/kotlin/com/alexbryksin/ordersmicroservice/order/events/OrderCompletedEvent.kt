@@ -9,6 +9,6 @@ data class OrderCompletedEvent(val orderId: String, override val version: Long) 
 }
 
 fun OrderCompletedEvent.Companion.of(order: Order): OrderCompletedEvent = OrderCompletedEvent(
-    orderId = order.id.toString(),
+    orderId = order.id,
     version = order.version
 )

@@ -7,14 +7,13 @@ import org.springframework.data.annotation.LastModifiedDate
 import org.springframework.data.mongodb.core.mapping.Document
 import org.springframework.data.mongodb.core.mapping.Field
 import java.time.LocalDateTime
-import java.util.*
 
 
 @Document(collection = "orders")
 data class OrderDocument(
-    @Id @Field(name = ID) var id: String? = null,
-    @Field(name = EMAIL) var email: String?,
-    @Field(name = ADDRESS) var address: String? = null,
+    @Id @Field(name = ID) var id: String = "",
+    @Field(name = EMAIL) var email: String = "",
+    @Field(name = ADDRESS) var address: String = "",
     @Field(name = STATUS) var status: OrderStatus = OrderStatus.NEW,
     @Field(name = VERSION) var version: Long = 0,
     @Field(name = PRODUCT_ITEMS) val productItems: MutableList<ProductItem> = arrayListOf(),
@@ -33,47 +32,35 @@ data class OrderDocument(
         return this
     }
 
-    fun removeProductItem(id: UUID): OrderDocument {
+    fun removeProductItem(id: String): OrderDocument {
         productItems.removeIf { it.id == id }
         return this
     }
 
     fun pay() {
-        if (productItems.isEmpty()) throw OrderHasNotProductItemsException(UUID.fromString(id))
+        if (productItems.isEmpty()) throw OrderHasNotProductItemsException(id)
         status = OrderStatus.PAID
     }
 
     fun submit() {
-        if (productItems.isEmpty()) throw OrderHasNotProductItemsException(UUID.fromString(id))
-        if (status == OrderStatus.COMPLETED || status == OrderStatus.CANCELLED) throw SubmitOrderException(
-            UUID.fromString(
-                id
-            ), status
-        )
-        if (status != OrderStatus.PAID) throw OrderNotPaidException(UUID.fromString(id))
+        if (productItems.isEmpty()) throw OrderHasNotProductItemsException(id)
+        if (status == OrderStatus.COMPLETED || status == OrderStatus.CANCELLED) throw SubmitOrderException(id, status)
+        if (status != OrderStatus.PAID) throw OrderNotPaidException(id)
         status = OrderStatus.SUBMITTED
     }
 
     fun cancel() {
-        if (status == OrderStatus.COMPLETED || status == OrderStatus.CANCELLED) throw CancelOrderException(
-            UUID.fromString(
-                id
-            ), status
-        )
+        if (status == OrderStatus.COMPLETED || status == OrderStatus.CANCELLED) throw CancelOrderException(id, status)
         status = OrderStatus.CANCELLED
     }
 
     fun complete() {
-        if (status == OrderStatus.CANCELLED || status != OrderStatus.SUBMITTED) throw CompleteOrderException(
-            UUID.fromString(
-                id
-            ), status
-        )
+        if (status == OrderStatus.CANCELLED || status != OrderStatus.SUBMITTED) throw CompleteOrderException(id, status)
         status = OrderStatus.COMPLETED
     }
 
     fun toOrder() = Order(
-        id = UUID.fromString(this.id),
+        id = id,
         email = this.email,
         address = this.address,
         status = this.status,
@@ -97,7 +84,7 @@ data class OrderDocument(
 
 
 fun OrderDocument.Companion.of(order: Order): OrderDocument = OrderDocument(
-    id = order.id.toString(),
+    id = order.id,
     email = order.email,
     address = order.address,
     status = order.status,

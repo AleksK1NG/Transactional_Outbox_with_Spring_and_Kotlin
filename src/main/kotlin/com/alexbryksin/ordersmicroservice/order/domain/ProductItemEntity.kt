@@ -17,7 +17,7 @@ import java.util.*
 data class ProductItemEntity(
     @Id @Column("id") var id: UUID? = null,
     @Column("order_id") var orderId: UUID,
-    @Column("title") var title: String?,
+    @Column("title") var title: String = "",
     @Column("price") var price: BigDecimal = BigDecimal.ZERO,
     @Column("quantity") var quantity: Long = 0,
     @Version @Column("version") var version: Long = 0,
@@ -27,8 +27,8 @@ data class ProductItemEntity(
     companion object
 
     fun toProductItem() = ProductItem(
-        id = this.id,
-        orderId = this.orderId,
+        id = this.id.toString(),
+        orderId = this.orderId.toString(),
         title = this.title,
         price = this.price,
         quantity = this.quantity,
@@ -40,7 +40,7 @@ data class ProductItemEntity(
 
 fun ProductItemEntity.Companion.of(row: Row) = ProductItemEntity(
     id = row["productId", UUID::class.java],
-    title = row["title", String::class.java],
+    title = row["title", String::class.java] ?: "",
     orderId = row["order_id", UUID::class.java]!!,
     price = row["price", BigDecimal::class.java] ?: BigDecimal.ZERO,
     quantity = row["quantity", BigInteger::class.java]?.toLong() ?: 0,
@@ -48,8 +48,8 @@ fun ProductItemEntity.Companion.of(row: Row) = ProductItemEntity(
 
 
 fun ProductItemEntity.Companion.of(productItem: ProductItem): ProductItemEntity = ProductItemEntity(
-    id = productItem.id,
-    orderId = productItem.orderId!!,
+    id = UUID.fromString(productItem.id),
+    orderId = UUID.fromString(productItem.orderId),
     title = productItem.title,
     price = productItem.price,
     quantity = productItem.quantity,
@@ -58,5 +58,5 @@ fun ProductItemEntity.Companion.of(productItem: ProductItem): ProductItemEntity 
     updatedAt = productItem.updatedAt
 )
 
-fun ProductItemEntity.Companion.listOf(productItems: List<ProductItem>, orderId: UUID) = productItems
-    .map { item -> ProductItemEntity.of(item.copy(orderId = orderId)) }
+fun ProductItemEntity.Companion.listOf(productItems: List<ProductItem>, orderId: UUID?) = productItems
+    .map { item -> ProductItemEntity.of(item.copy(orderId = orderId.toString())) }

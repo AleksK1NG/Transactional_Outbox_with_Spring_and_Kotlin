@@ -14,7 +14,7 @@ data class ProductItemAddedEvent(
 }
 
 fun ProductItemAddedEvent.Companion.of(order: Order, item: ProductItem): ProductItemAddedEvent = ProductItemAddedEvent(
-    orderId = order.id.toString(),
+    orderId = order.id,
     version = order.version,
     item
 )

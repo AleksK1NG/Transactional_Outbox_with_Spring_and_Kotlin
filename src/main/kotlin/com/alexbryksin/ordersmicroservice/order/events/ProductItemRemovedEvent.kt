@@ -14,7 +14,7 @@ data class ProductItemRemovedEvent(
 }
 
 fun ProductItemRemovedEvent.Companion.of(order: Order, itemId: UUID): ProductItemRemovedEvent = ProductItemRemovedEvent(
-    orderId = order.id.toString(),
+    orderId = order.id,
     version = order.version,
     productItemId = itemId.toString()
 )

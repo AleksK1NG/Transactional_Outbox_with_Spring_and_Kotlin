@@ -24,9 +24,9 @@ data class OrderEntity(
 
 
     fun toOrder() = Order(
-        id = this.id,
-        email = this.email,
-        address = this.address,
+        id = this.id.toString(),
+        email = this.email ?: "",
+        address = this.address ?: "",
         status = this.status,
         version = this.version,
         createdAt = this.createdAt,
@@ -45,7 +45,7 @@ data class OrderEntity(
 }
 
 fun OrderEntity.Companion.of(order: Order): OrderEntity = OrderEntity(
-    id = order.id,
+    id = order.id.toUUID(),
     email = order.email,
     address = order.address,
     status = order.status,

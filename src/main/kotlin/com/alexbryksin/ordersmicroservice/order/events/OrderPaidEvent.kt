@@ -9,7 +9,7 @@ data class OrderPaidEvent(val orderId: String, override val version: Long, val p
 }
 
 fun OrderPaidEvent.Companion.of(order: Order, paymentId: String): OrderPaidEvent = OrderPaidEvent(
-    orderId = order.id.toString(),
+    orderId = order.id,
     version =  order.version,
     paymentId = paymentId
 )
