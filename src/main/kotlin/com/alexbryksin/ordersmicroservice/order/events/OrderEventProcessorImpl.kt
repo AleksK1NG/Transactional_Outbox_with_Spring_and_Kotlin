@@ -34,7 +34,7 @@ class OrderEventProcessorImpl(private val orderMongoRepository: OrderMongoReposi
 
     override suspend fun on(orderPaidEvent: OrderPaidEvent): Unit = withContext(Dispatchers.IO) {
         orderMongoRepository.getByID(orderPaidEvent.orderId).let {
-            it.pay()
+            it.pay(orderPaidEvent.paymentId)
             it.version = orderPaidEvent.version
 
             orderMongoRepository.update(it).also { order -> log.info("orderPaidEvent updatedOrder: $order") }

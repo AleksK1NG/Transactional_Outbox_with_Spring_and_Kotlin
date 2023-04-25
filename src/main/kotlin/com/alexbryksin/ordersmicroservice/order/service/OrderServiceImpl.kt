@@ -109,7 +109,7 @@ class OrderServiceImpl(
     override suspend fun pay(id: UUID, paymentId: String): Order = coroutineScope {
         txOp.executeAndAwait {
             orderRepository.getOrderWithProductItemsByID(id).let {
-                it.pay()
+                it.pay(paymentId)
 
                 orderRepository.update(it).let { updatedOrder ->
                     val record = outboxRecord(

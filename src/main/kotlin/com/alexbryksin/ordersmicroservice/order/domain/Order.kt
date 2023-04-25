@@ -11,6 +11,7 @@ class Order(
     var status: OrderStatus = OrderStatus.NEW,
     var version: Long = 0,
     val productItems: MutableList<ProductItem> = arrayListOf(),
+    var paymentId: String = "",
     var createdAt: LocalDateTime? = null,
     var updatedAt: LocalDateTime? = null
 ) {
@@ -30,8 +31,10 @@ class Order(
         return this
     }
 
-    fun pay() {
+    fun pay(paymentId: String) {
         if (productItems.isEmpty()) throw OrderHasNotProductItemsException(id)
+        if (paymentId.isBlank()) throw InvalidPaymentIdException(id, paymentId)
+        this.paymentId = paymentId
         status = OrderStatus.PAID
     }
 
