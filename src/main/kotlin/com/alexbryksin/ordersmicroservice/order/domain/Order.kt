@@ -79,19 +79,11 @@ class Order(
     }
 
     override fun toString(): String {
-        return "Order(id=$id, email=$email, address=$address, status=$status, version=$version, productItems=${productItems.size}, createdAt=$createdAt, updatedAt=$updatedAt)"
+        return "Order(id='$id', email='$email', address='$address', status=$status, version=$version, productItems=${productItems.size}, paymentId='$paymentId', createdAt=$createdAt, updatedAt=$updatedAt)"
     }
 
-    companion object {
-        const val ID = "id"
-        const val EMAIL = "email"
-        const val ADDRESS = "address"
-        const val STATUS = "status"
-        const val VERSION = "version"
-        const val PRODUCT_ITEMS = "productItems"
-        const val CREATED_AT = "createdAt"
-        const val UPDATED_AT = "updatedAt"
-    }
+
+    companion object
 }
 
 fun String.toUUID(): UUID? {
