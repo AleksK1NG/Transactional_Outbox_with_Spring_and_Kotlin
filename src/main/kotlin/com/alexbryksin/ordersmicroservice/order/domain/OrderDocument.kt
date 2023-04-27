@@ -1,6 +1,5 @@
 package com.alexbryksin.ordersmicroservice.order.domain
 
-import com.alexbryksin.ordersmicroservice.order.exceptions.*
 import org.springframework.data.annotation.CreatedDate
 import org.springframework.data.annotation.Id
 import org.springframework.data.annotation.LastModifiedDate
@@ -21,44 +20,6 @@ data class OrderDocument(
     @CreatedDate @Field(name = CREATED_AT) var createdAt: LocalDateTime? = null,
     @LastModifiedDate @Field(name = UPDATED_AT) var updatedAt: LocalDateTime? = null
 ) {
-
-
-    fun addProductItem(productItem: ProductItem): OrderDocument {
-        productItems.add(productItem)
-        return this
-    }
-
-    fun addProductItems(items: List<ProductItem>): OrderDocument {
-        productItems.addAll(items)
-        return this
-    }
-
-    fun removeProductItem(id: String): OrderDocument {
-        productItems.removeIf { it.id == id }
-        return this
-    }
-
-    fun pay() {
-        if (productItems.isEmpty()) throw OrderHasNotProductItemsException(id)
-        status = OrderStatus.PAID
-    }
-
-    fun submit() {
-        if (productItems.isEmpty()) throw OrderHasNotProductItemsException(id)
-        if (status == OrderStatus.COMPLETED || status == OrderStatus.CANCELLED) throw SubmitOrderException(id, status)
-        if (status != OrderStatus.PAID) throw OrderNotPaidException(id)
-        status = OrderStatus.SUBMITTED
-    }
-
-    fun cancel() {
-        if (status == OrderStatus.COMPLETED || status == OrderStatus.CANCELLED) throw CancelOrderException(id, status)
-        status = OrderStatus.CANCELLED
-    }
-
-    fun complete() {
-        if (status == OrderStatus.CANCELLED || status != OrderStatus.SUBMITTED) throw CompleteOrderException(id, status)
-        status = OrderStatus.COMPLETED
-    }
 
     fun toOrder() = Order(
         id = id,
