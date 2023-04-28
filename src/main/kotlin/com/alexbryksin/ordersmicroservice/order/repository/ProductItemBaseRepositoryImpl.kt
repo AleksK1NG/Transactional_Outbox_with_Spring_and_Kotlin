@@ -1,7 +1,8 @@
 package com.alexbryksin.ordersmicroservice.order.repository
 
 import com.alexbryksin.ordersmicroservice.order.domain.ProductItemEntity
-import kotlinx.coroutines.coroutineScope
+import com.alexbryksin.ordersmicroservice.utils.tracing.coroutineScopeWithObservation
+import io.micrometer.observation.ObservationRegistry
 import kotlinx.coroutines.reactor.awaitSingle
 import org.slf4j.LoggerFactory
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate
@@ -9,16 +10,20 @@ import org.springframework.stereotype.Repository
 
 
 @Repository
-class ProductItemBaseRepositoryImpl(private val entityTemplate: R2dbcEntityTemplate) : ProductItemBaseRepository {
+class ProductItemBaseRepositoryImpl(
+    private val entityTemplate: R2dbcEntityTemplate,
+    private val or: ObservationRegistry,
+) : ProductItemBaseRepository {
 
-    override suspend fun insert(productItemEntity: ProductItemEntity): ProductItemEntity = coroutineScope {
-        val result = entityTemplate.insert(productItemEntity).awaitSingle()
+    override suspend fun insert(productItemEntity: ProductItemEntity): ProductItemEntity =
+        coroutineScopeWithObservation("ProductItemBaseRepository.insert", or) {
+            val result = entityTemplate.insert(productItemEntity).awaitSingle()
 
-        log.info("saved product item: $result")
-        result
-    }
+            log.info("saved product item: $result")
+            result
+        }
 
-    override suspend fun insertAll(productItemEntities: List<ProductItemEntity>) = coroutineScope {
+    override suspend fun insertAll(productItemEntities: List<ProductItemEntity>) = coroutineScopeWithObservation("ProductItemBaseRepository.insertAll", or) {
 
         val result = productItemEntities.map { entityTemplate.insert(it) }.map { it.awaitSingle() }
         log.info("inserted product items: $result")

@@ -12,6 +12,8 @@ import com.alexbryksin.ordersmicroservice.order.domain.OrderDocument.Companion.V
 import com.alexbryksin.ordersmicroservice.order.domain.of
 import com.alexbryksin.ordersmicroservice.order.domain.toUUID
 import com.alexbryksin.ordersmicroservice.order.exceptions.OrderNotFoundException
+import com.alexbryksin.ordersmicroservice.utils.tracing.coroutineScopeWithObservation
+import io.micrometer.observation.ObservationRegistry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.reactor.awaitSingle
@@ -30,14 +32,17 @@ import org.springframework.stereotype.Repository
 
 
 @Repository
-class OrderMongoRepositoryImpl(private val mongoTemplate: ReactiveMongoTemplate) : OrderMongoRepository {
+class OrderMongoRepositoryImpl(
+    private val mongoTemplate: ReactiveMongoTemplate,
+    private val or: ObservationRegistry,
+) : OrderMongoRepository {
 
-    override suspend fun insert(order: Order): Order = withContext(Dispatchers.IO) {
+    override suspend fun insert(order: Order): Order = coroutineScopeWithObservation("OrderMongoRepository.insert", or) {
         mongoTemplate.insert(OrderDocument.of(order)).awaitSingle().toOrder()
             .also { log.info("inserted order: $it") }
     }
 
-    override suspend fun update(order: Order): Order = withContext(Dispatchers.IO) {
+    override suspend fun update(order: Order): Order = coroutineScopeWithObservation("OrderMongoRepository.update", or) {
         val query = Query.query(Criteria.where(ID).`is`(order.id).and(VERSION).`is`(order.version - 1))
 
         val update = Update()
@@ -55,17 +60,20 @@ class OrderMongoRepositoryImpl(private val mongoTemplate: ReactiveMongoTemplate)
         updatedOrderDocument.toOrder().also { log.info("updated order: $it") }
     }
 
-    override suspend fun getByID(id: String): Order = withContext(Dispatchers.IO) {
+    override suspend fun getByID(id: String): Order = coroutineScopeWithObservation("OrderMongoRepository.getByID", or) {
         mongoTemplate.findById(id, OrderDocument::class.java).awaitSingle().toOrder()
             .also { log.info("found order document: $it") }
     }
 
-    override suspend fun getAllOrders(pageable: Pageable): Page<Order> = withContext(Dispatchers.IO) {
-        val query = Query().with(pageable)
-        val data = async { mongoTemplate.find(query, OrderDocument::class.java).collectList().awaitSingle() }.await()
-        val count = async { mongoTemplate.count(Query(), OrderDocument::class.java).awaitSingle() }.await()
-        PageableExecutionUtils.getPage(data.map { it.toOrder() }, pageable) { count }
+    override suspend fun getAllOrders(pageable: Pageable): Page<Order> = coroutineScopeWithObservation("OrderMongoRepository.Dispatchers", or) {
+        withContext(Dispatchers.IO) {
+            val query = Query().with(pageable)
+            val data = async { mongoTemplate.find(query, OrderDocument::class.java).collectList().awaitSingle() }.await()
+            val count = async { mongoTemplate.count(Query(), OrderDocument::class.java).awaitSingle() }.await()
+            PageableExecutionUtils.getPage(data.map { it.toOrder() }, pageable) { count }
+        }
     }
+
 
     companion object {
         private val log = LoggerFactory.getLogger(OrderMongoRepositoryImpl::class.java)

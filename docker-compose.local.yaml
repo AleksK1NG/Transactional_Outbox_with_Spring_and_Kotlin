@@ -90,6 +90,7 @@ services:
       MONGODB_DATABASE: bank_accounts
     networks: [ "microservices" ]
 
+
 networks:
   microservices:
     name: microservices

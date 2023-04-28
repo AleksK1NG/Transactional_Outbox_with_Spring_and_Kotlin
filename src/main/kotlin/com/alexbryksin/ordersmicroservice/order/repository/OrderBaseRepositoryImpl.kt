@@ -7,12 +7,11 @@ import com.alexbryksin.ordersmicroservice.order.domain.OrderEntity.Companion.VER
 import com.alexbryksin.ordersmicroservice.order.domain.ProductItemEntity
 import com.alexbryksin.ordersmicroservice.order.domain.of
 import com.alexbryksin.ordersmicroservice.order.exceptions.OrderNotFoundException
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
+import com.alexbryksin.ordersmicroservice.utils.tracing.coroutineScopeWithObservation
+import io.micrometer.observation.ObservationRegistry
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.reactor.awaitSingleOrNull
-import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate
 import org.springframework.data.relational.core.query.Criteria
@@ -28,9 +27,10 @@ import java.util.*
 class OrderBaseRepositoryImpl(
     private val dbClient: DatabaseClient,
     private val entityTemplate: R2dbcEntityTemplate,
+    private val or: ObservationRegistry
 ) : OrderBaseRepository {
 
-    override suspend fun updateOrderVersion(id: UUID, newVersion: Long): Long = coroutineScope {
+    override suspend fun updateOrderVersion(id: UUID, newVersion: Long): Long = coroutineScopeWithObservation("OrderBaseRepository.updateOrderVersion", or) {
         dbClient.sql("UPDATE microservices.orders SET version = (version + 1) WHERE id = :id AND version = :version")
             .bind(ID, id)
             .bind(VERSION, newVersion - 1)
@@ -40,7 +40,7 @@ class OrderBaseRepositoryImpl(
             .also { log.info("for order with id: $id version updated to $newVersion") }
     }
 
-    override suspend fun getOrderWithProductItemsByID(id: UUID): Order = coroutineScope {
+    override suspend fun getOrderWithProductItemsByID(id: UUID): Order = coroutineScopeWithObservation("OrderBaseRepository.getOrderWithProductItemsByID", or) {
         dbClient.sql(
             """SELECT o.id, o.email, o.status, o.address, o.version, o.payment_id, o.created_at, o.updated_at, 
             |pi.id as productId, pi.price, pi.title, pi.quantity, pi.order_id, pi.version as itemVersion, pi.created_at as itemCreatedAt, pi.updated_at as itemUpdatedAt
@@ -72,18 +72,18 @@ class OrderBaseRepositoryImpl(
             .doOnNext { log.info("loaded order: $it") }
     }
 
-    override suspend fun findOrderByID(id: UUID): Order = withContext(Dispatchers.IO) {
+    override suspend fun findOrderByID(id: UUID): Order = coroutineScopeWithObservation("OrderBaseRepository.findOrderByID", or) {
         val query = Query.query(Criteria.where(ID).`is`(id))
         entityTemplate.selectOne(query, OrderEntity::class.java).awaitSingleOrNull()?.toOrder()
             ?: throw OrderNotFoundException(id)
     }
 
-    override suspend fun insert(order: Order): Order = withContext(Dispatchers.IO) {
+    override suspend fun insert(order: Order): Order = coroutineScopeWithObservation("OrderBaseRepository.insert", or) {
         entityTemplate.insert(OrderEntity.of(order)).awaitSingle().toOrder()
             .also { log.info("inserted order: $it") }
     }
 
-    override suspend fun update(order: Order): Order = withContext(Dispatchers.IO) {
+    override suspend fun update(order: Order): Order = coroutineScopeWithObservation("OrderBaseRepository.update", or) {
         entityTemplate.update(OrderEntity.of(order)).awaitSingle().toOrder()
             .also { log.info("updated order: $it") }
     }

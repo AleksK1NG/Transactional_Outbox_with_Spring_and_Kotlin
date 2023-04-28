@@ -17,6 +17,8 @@ import com.alexbryksin.ordersmicroservice.order.events.ProductItemRemovedEvent.C
 import com.alexbryksin.ordersmicroservice.utils.kafkaUtils.getHeader
 import com.alexbryksin.ordersmicroservice.utils.serializer.SerializationException
 import com.alexbryksin.ordersmicroservice.utils.serializer.Serializer
+import com.alexbryksin.ordersmicroservice.utils.tracing.coroutineScopeWithObservation
+import io.micrometer.observation.ObservationRegistry
 import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.reactor.mono
 import kotlinx.coroutines.runBlocking
@@ -34,7 +36,8 @@ class OrderConsumer(
     private val kafkaTopicsConfiguration: KafkaTopicsConfiguration,
     private val serializer: Serializer,
     private val eventsPublisher: EventsPublisher,
-    private val orderEventProcessor: OrderEventProcessor
+    private val orderEventProcessor: OrderEventProcessor,
+    private val or: ObservationRegistry,
 ) {
 
     @KafkaListener(
@@ -50,57 +53,61 @@ class OrderConsumer(
         ],
     )
     fun process(ack: Acknowledgment, consumerRecord: ConsumerRecord<String, ByteArray>) = runBlocking {
-        try {
-            processOutboxRecord(serializer.deserialize(consumerRecord.value(), OutboxRecord::class.java))
-                .also { ack.acknowledge() }
-            log.info("committed record topic: ${consumerRecord.topic()} offset: ${consumerRecord.offset()} partition: ${consumerRecord.partition()}")
-        } catch (ex: Exception) {
-            if (ex is SerializationException || ex is UnknownEventTypeException) {
-                log.error("commit not serializable or unknown record: ${String(consumerRecord.value())}")
-                ack.acknowledge()
-                return@runBlocking
-            }
+        coroutineScopeWithObservation("OrderConsumer.process", or) {
+            try {
+                processOutboxRecord(serializer.deserialize(consumerRecord.value(), OutboxRecord::class.java))
+                    .also { ack.acknowledge() }
+                log.info("committed record topic: ${consumerRecord.topic()} offset: ${consumerRecord.offset()} partition: ${consumerRecord.partition()}")
+            } catch (ex: Exception) {
+                if (ex is SerializationException || ex is UnknownEventTypeException) {
+                    log.error("commit not serializable or unknown record: ${String(consumerRecord.value())}")
+                    ack.acknowledge()
+                    return@coroutineScopeWithObservation
+                }
 
-            log.error("exception while processing record: ${ex.localizedMessage}")
-            publishRetryTopic(kafkaTopicsConfiguration.retryTopic?.name!!, consumerRecord, 1)
+                log.error("exception while processing record: ${ex.localizedMessage}")
+                publishRetryTopic(kafkaTopicsConfiguration.retryTopic?.name!!, consumerRecord, 1)
+            }
         }
     }
 
 
     @KafkaListener(groupId = "\${kafka.consumer-group-id:order-service-group-id}", topics = ["\${topics.retryTopic.name}"])
     fun processRetry(ack: Acknowledgment, consumerRecord: ConsumerRecord<String, ByteArray>): Unit = runBlocking {
-        try {
-            processOutboxRecord(
-                serializer.deserialize(
-                    consumerRecord.value(),
-                    OutboxRecord::class.java
-                )
-            ).also { ack.acknowledge() }
-            log.info("committed retry record >>>>>>>>>>>>>> topic: ${consumerRecord.topic()} offset: ${consumerRecord.offset()} partition: ${consumerRecord.partition()}")
-        } catch (ex: Exception) {
-            if (ex is SerializationException || ex is UnknownEventTypeException) {
-                ack.acknowledge()
-                    .also { log.error("commit not serializable or unknown record: ${String(consumerRecord.value())}") }
-                return@runBlocking
+        coroutineScopeWithObservation("OrderConsumer.process", or) {
+            try {
+                processOutboxRecord(
+                    serializer.deserialize(
+                        consumerRecord.value(),
+                        OutboxRecord::class.java
+                    )
+                ).also { ack.acknowledge() }
+                log.info("committed retry record >>>>>>>>>>>>>> topic: ${consumerRecord.topic()} offset: ${consumerRecord.offset()} partition: ${consumerRecord.partition()}")
+            } catch (ex: Exception) {
+                if (ex is SerializationException || ex is UnknownEventTypeException) {
+                    ack.acknowledge()
+                        .also { log.error("commit not serializable or unknown record: ${String(consumerRecord.value())}") }
+                    return@coroutineScopeWithObservation
+                }
+
+                val retryCount = getHeader(RETRY_COUNT_HEADER, consumerRecord.headers()).toInt()
+
+                if (ex is InvalidVersionException) {
+                    log.info("processing retry invalid version exception >>>>>>>>>>>>>>>> ${ex.localizedMessage}")
+                    publishRetryTopic(kafkaTopicsConfiguration.deadLetterQueue?.name!!, consumerRecord, retryCount)
+                    return@coroutineScopeWithObservation
+                }
+
+                if (retryCount > MAX_RETRY_COUNT) {
+                    log.error("retry count exceed, send record to dlq: ${consumerRecord.topic()}")
+                    publishRetryTopic(kafkaTopicsConfiguration.deadLetterQueue?.name!!, consumerRecord, retryCount + 1)
+                    ack.acknowledge()
+                    return@coroutineScopeWithObservation
+                }
+
+                log.error("exception while processing record: ${ex.localizedMessage}")
+                publishRetryTopic(kafkaTopicsConfiguration.retryTopic?.name!!, consumerRecord, retryCount + 1)
             }
-
-            val retryCount = getHeader(RETRY_COUNT_HEADER, consumerRecord.headers()).toInt()
-
-            if (ex is InvalidVersionException) {
-                log.info("processing retry invalid version exception >>>>>>>>>>>>>>>> ${ex.localizedMessage}")
-                publishRetryTopic(kafkaTopicsConfiguration.deadLetterQueue?.name!!, consumerRecord, retryCount)
-                return@runBlocking
-            }
-
-            if (retryCount > MAX_RETRY_COUNT) {
-                log.error("retry count exceed, send record to dlq: ${consumerRecord.topic()}")
-                publishRetryTopic(kafkaTopicsConfiguration.deadLetterQueue?.name!!, consumerRecord, retryCount + 1)
-                ack.acknowledge()
-                return@runBlocking
-            }
-
-            log.error("exception while processing record: ${ex.localizedMessage}")
-            publishRetryTopic(kafkaTopicsConfiguration.retryTopic?.name!!, consumerRecord, retryCount + 1)
         }
     }
 

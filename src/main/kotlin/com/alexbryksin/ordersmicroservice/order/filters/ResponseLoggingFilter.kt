@@ -20,7 +20,7 @@ class ResponseLoggingFilter : WebFilter {
                 if (!exchange.request.path.value().contains("actuator")) {
                     log.info(
                         "method: {}, path: {}, status: {}, headers: {}, time: {}ms",
-                        exchange.request.method.name(),
+                        exchange.request.method.name().uppercase(),
                         exchange.request.path.value(),
                         exchange.response.statusCode?.value(),
                         exchange.response.headers,
