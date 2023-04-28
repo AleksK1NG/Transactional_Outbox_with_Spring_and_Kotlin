@@ -16,7 +16,7 @@ class OutboxScheduler(private val orderService: OrderService, private val or: Ob
 
     @Scheduled(initialDelay = 3000, fixedRate = 1000)
     fun publishAndDeleteOutboxRecords() = runBlocking {
-        coroutineScopeWithObservation("OrderEventProcessor.OrderCreatedEvent", or) {
+        coroutineScopeWithObservation("OutboxScheduler.publishAndDeleteOutboxRecords", or) {
             log.debug("starting scheduled outbox table publishing")
             orderService.deleteOutboxRecordsWithLock()
             log.debug("completed scheduled outbox table publishing")
