@@ -37,12 +37,12 @@ class OrderMongoRepositoryImpl(
     private val or: ObservationRegistry,
 ) : OrderMongoRepository {
 
-    override suspend fun insert(order: Order): Order = coroutineScopeWithObservation("OrderMongoRepository.insert", or) {
+    override suspend fun insert(order: Order): Order = coroutineScopeWithObservation(INSERT, or) {
         mongoTemplate.insert(OrderDocument.of(order)).awaitSingle().toOrder()
             .also { log.info("inserted order: $it") }
     }
 
-    override suspend fun update(order: Order): Order = coroutineScopeWithObservation("OrderMongoRepository.update", or) {
+    override suspend fun update(order: Order): Order = coroutineScopeWithObservation(UPDATE, or) {
         val query = Query.query(Criteria.where(ID).`is`(order.id).and(VERSION).`is`(order.version - 1))
 
         val update = Update()
@@ -60,12 +60,12 @@ class OrderMongoRepositoryImpl(
         updatedOrderDocument.toOrder().also { log.info("updated order: $it") }
     }
 
-    override suspend fun getByID(id: String): Order = coroutineScopeWithObservation("OrderMongoRepository.getByID", or) {
+    override suspend fun getByID(id: String): Order = coroutineScopeWithObservation(GET_BY_ID, or) {
         mongoTemplate.findById(id, OrderDocument::class.java).awaitSingle().toOrder()
             .also { log.info("found order document: $it") }
     }
 
-    override suspend fun getAllOrders(pageable: Pageable): Page<Order> = coroutineScopeWithObservation("OrderMongoRepository.Dispatchers", or) {
+    override suspend fun getAllOrders(pageable: Pageable): Page<Order> = coroutineScopeWithObservation(GET_ALL_ORDERS, or) {
         withContext(Dispatchers.IO) {
             val query = Query().with(pageable)
             val data = async { mongoTemplate.find(query, OrderDocument::class.java).collectList().awaitSingle() }.await()
@@ -77,5 +77,10 @@ class OrderMongoRepositoryImpl(
 
     companion object {
         private val log = LoggerFactory.getLogger(OrderMongoRepositoryImpl::class.java)
+
+        private const val GET_BY_ID = "OrderMongoRepository.getByID"
+        private const val GET_ALL_ORDERS = "OrderMongoRepository.getAllOrders"
+        private const val UPDATE = "OrderMongoRepository.update"
+        private const val INSERT = "OrderMongoRepository.insert"
     }
 }

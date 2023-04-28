@@ -53,10 +53,10 @@ class OrderConsumer(
         ],
     )
     fun process(ack: Acknowledgment, consumerRecord: ConsumerRecord<String, ByteArray>) = runBlocking {
-        coroutineScopeWithObservation("OrderConsumer.process", or) {
+        coroutineScopeWithObservation(PROCESS, or) {
             try {
                 processOutboxRecord(serializer.deserialize(consumerRecord.value(), OutboxRecord::class.java))
-                    .also { ack.acknowledge() }
+                ack.acknowledge()
                 log.info("committed record topic: ${consumerRecord.topic()} offset: ${consumerRecord.offset()} partition: ${consumerRecord.partition()}")
             } catch (ex: Exception) {
                 if (ex is SerializationException || ex is UnknownEventTypeException) {
@@ -74,19 +74,15 @@ class OrderConsumer(
 
     @KafkaListener(groupId = "\${kafka.consumer-group-id:order-service-group-id}", topics = ["\${topics.retryTopic.name}"])
     fun processRetry(ack: Acknowledgment, consumerRecord: ConsumerRecord<String, ByteArray>): Unit = runBlocking {
-        coroutineScopeWithObservation("OrderConsumer.process", or) {
+        coroutineScopeWithObservation(PROCESS_RETRY, or) {
             try {
-                processOutboxRecord(
-                    serializer.deserialize(
-                        consumerRecord.value(),
-                        OutboxRecord::class.java
-                    )
-                ).also { ack.acknowledge() }
+                processOutboxRecord(serializer.deserialize(consumerRecord.value(), OutboxRecord::class.java))
+                ack.acknowledge()
                 log.info("committed retry record >>>>>>>>>>>>>> topic: ${consumerRecord.topic()} offset: ${consumerRecord.offset()} partition: ${consumerRecord.partition()}")
             } catch (ex: Exception) {
                 if (ex is SerializationException || ex is UnknownEventTypeException) {
                     ack.acknowledge()
-                        .also { log.error("commit not serializable or unknown record: ${String(consumerRecord.value())}") }
+                    log.error("commit not serializable or unknown record: ${String(consumerRecord.value())}")
                     return@coroutineScopeWithObservation
                 }
 
@@ -113,78 +109,90 @@ class OrderConsumer(
 
 
     private suspend fun publishRetryTopic(topic: String, record: ConsumerRecord<String, ByteArray>, retryCount: Int) {
-        return mono { publishRetryRecord(topic, record, retryCount) }
-            .retryWhen(Retry.backoff(PUBLISH_RETRY_COUNT, Duration.ofMillis(PUBLISH_RETRY_BACKOFF_DURATION_MILLIS))
-                .filter { it is SerializationException })
-            .awaitSingle()
+        coroutineScopeWithObservation(PUBLISH_RETRY_TOPIC, or) {
+            mono { publishRetryRecord(topic, record, retryCount) }
+                .retryWhen(Retry.backoff(PUBLISH_RETRY_COUNT, Duration.ofMillis(PUBLISH_RETRY_BACKOFF_DURATION_MILLIS))
+                    .filter { it is SerializationException })
+                .awaitSingle()
+        }
     }
 
 
     private suspend fun publishRetryRecord(topic: String, record: ConsumerRecord<String, ByteArray>, retryCount: Int) {
-        log.info("publishing retry record: ${String(record.value())}, retryCount: $retryCount")
-        val headersMap = mutableMapOf(RETRY_COUNT_HEADER to retryCount.toString().toByteArray())
-        record.headers().forEach { headersMap[it.key()] = it.value() }
-        eventsPublisher.publishRetryRecord(topic, record.key(), record.value(), headersMap)
+        coroutineScopeWithObservation(PUBLISH_RETRY_RECORD, or) {
+            log.info("publishing retry record: ${String(record.value())}, retryCount: $retryCount")
+            val headersMap = mutableMapOf(RETRY_COUNT_HEADER to retryCount.toString().toByteArray())
+            record.headers().forEach { headersMap[it.key()] = it.value() }
+            eventsPublisher.publishRetryRecord(topic, record.key(), record.value(), headersMap)
+        }
     }
 
-    private suspend fun processOutboxRecord(outboxRecord: OutboxRecord) = when (outboxRecord.eventType) {
-        ORDER_CREATED_EVENT -> orderEventProcessor.on(
-            serializer.deserialize(
-                outboxRecord.data,
-                OrderCreatedEvent::class.java
+    private suspend fun processOutboxRecord(outboxRecord: OutboxRecord) = coroutineScopeWithObservation(PROCESS_OUTBOX_RECORD, or) {
+        when (outboxRecord.eventType) {
+            ORDER_CREATED_EVENT -> orderEventProcessor.on(
+                serializer.deserialize(
+                    outboxRecord.data,
+                    OrderCreatedEvent::class.java
+                )
             )
-        )
 
-        PRODUCT_ITEM_ADDED_EVENT -> orderEventProcessor.on(
-            serializer.deserialize(
-                outboxRecord.data,
-                ProductItemAddedEvent::class.java
+            PRODUCT_ITEM_ADDED_EVENT -> orderEventProcessor.on(
+                serializer.deserialize(
+                    outboxRecord.data,
+                    ProductItemAddedEvent::class.java
+                )
             )
-        )
 
-        PRODUCT_ITEM_REMOVED_EVENT -> orderEventProcessor.on(
-            serializer.deserialize(
-                outboxRecord.data,
-                ProductItemRemovedEvent::class.java
+            PRODUCT_ITEM_REMOVED_EVENT -> orderEventProcessor.on(
+                serializer.deserialize(
+                    outboxRecord.data,
+                    ProductItemRemovedEvent::class.java
+                )
             )
-        )
 
-        ORDER_PAID_EVENT -> orderEventProcessor.on(
-            serializer.deserialize(
-                outboxRecord.data,
-                OrderPaidEvent::class.java
+            ORDER_PAID_EVENT -> orderEventProcessor.on(
+                serializer.deserialize(
+                    outboxRecord.data,
+                    OrderPaidEvent::class.java
+                )
             )
-        )
 
-        ORDER_CANCELLED_EVENT -> orderEventProcessor.on(
-            serializer.deserialize(
-                outboxRecord.data,
-                OrderCancelledEvent::class.java
+            ORDER_CANCELLED_EVENT -> orderEventProcessor.on(
+                serializer.deserialize(
+                    outboxRecord.data,
+                    OrderCancelledEvent::class.java
+                )
             )
-        )
 
-        ORDER_SUBMITTED_EVENT -> orderEventProcessor.on(
-            serializer.deserialize(
-                outboxRecord.data,
-                OrderSubmittedEvent::class.java
+            ORDER_SUBMITTED_EVENT -> orderEventProcessor.on(
+                serializer.deserialize(
+                    outboxRecord.data,
+                    OrderSubmittedEvent::class.java
+                )
             )
-        )
 
-        ORDER_COMPLETED_EVENT -> orderEventProcessor.on(
-            serializer.deserialize(
-                outboxRecord.data,
-                OrderCompletedEvent::class.java
+            ORDER_COMPLETED_EVENT -> orderEventProcessor.on(
+                serializer.deserialize(
+                    outboxRecord.data,
+                    OrderCompletedEvent::class.java
+                )
             )
-        )
 
-        else -> throw UnknownEventTypeException(outboxRecord.eventType)
+            else -> throw UnknownEventTypeException(outboxRecord.eventType)
+        }
     }
 
     companion object {
         private val log = LoggerFactory.getLogger(OutboxConsumer::class.java)
-        const val RETRY_COUNT_HEADER = "retryCount"
-        const val MAX_RETRY_COUNT = 5
-        const val PUBLISH_RETRY_COUNT = 5L
-        const val PUBLISH_RETRY_BACKOFF_DURATION_MILLIS = 3000L
+        private const val RETRY_COUNT_HEADER = "retryCount"
+        private const val MAX_RETRY_COUNT = 5
+        private const val PUBLISH_RETRY_COUNT = 5L
+        private const val PUBLISH_RETRY_BACKOFF_DURATION_MILLIS = 3000L
+
+        private const val PROCESS = "OrderConsumer.process"
+        private const val PROCESS_RETRY = "OrderConsumer.processRetry"
+        private const val PUBLISH_RETRY_TOPIC = "OrderConsumer.publishRetryTopic"
+        private const val PUBLISH_RETRY_RECORD = "OrderConsumer.publishRetryRecord"
+        private const val PROCESS_OUTBOX_RECORD = "OrderConsumer.processOutboxRecord"
     }
 }

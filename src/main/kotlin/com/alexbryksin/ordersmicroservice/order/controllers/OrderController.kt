@@ -20,14 +20,14 @@ class OrderController(private val orderService: OrderService, private val or: Ob
     suspend fun getOrders(
         @RequestParam(name = "page", defaultValue = "0") page: Int,
         @RequestParam(name = "size", defaultValue = "20") size: Int,
-    ) = coroutineScopeWithObservation("OrderController.getOrders", or) {
+    ) = coroutineScopeWithObservation("OrderController.getOrders", or, Pair("page", page.toString()), Pair("size", size.toString())) {
         ResponseEntity.ok().body(orderService.getAllOrders(PageRequest.of(page, size)).map { OrderSuccessResponse.of(it) })
             .also { log.info("getOrderByID") }
     }
 
     @GetMapping(path = ["{id}"])
-    suspend fun getOrderByID(@PathVariable id: String) = coroutineScopeWithObservation("OrderController.getOrderByID", or) {
-        orderService.getOrderWithProductItemsByID(UUID.fromString(id))
+    suspend fun getOrderByID(@PathVariable id: String) = coroutineScopeWithObservation("OrderController.getOrderByID", or, Pair("id", id)) {
+        orderService.getOrderWithProductsByID(UUID.fromString(id))
             .let { ResponseEntity.ok().body(OrderSuccessResponse.of(it)) }
             .also { response -> log.info("getOrderByID response: $response") }
     }

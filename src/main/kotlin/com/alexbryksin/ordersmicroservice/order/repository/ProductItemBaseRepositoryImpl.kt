@@ -15,15 +15,14 @@ class ProductItemBaseRepositoryImpl(
     private val or: ObservationRegistry,
 ) : ProductItemBaseRepository {
 
-    override suspend fun insert(productItemEntity: ProductItemEntity): ProductItemEntity =
-        coroutineScopeWithObservation("ProductItemBaseRepository.insert", or) {
-            val result = entityTemplate.insert(productItemEntity).awaitSingle()
+    override suspend fun insert(productItemEntity: ProductItemEntity): ProductItemEntity = coroutineScopeWithObservation(INSERT, or) {
+        val result = entityTemplate.insert(productItemEntity).awaitSingle()
 
-            log.info("saved product item: $result")
-            result
-        }
+        log.info("saved product item: $result")
+        result
+    }
 
-    override suspend fun insertAll(productItemEntities: List<ProductItemEntity>) = coroutineScopeWithObservation("ProductItemBaseRepository.insertAll", or) {
+    override suspend fun insertAll(productItemEntities: List<ProductItemEntity>) = coroutineScopeWithObservation(INSERT_ALL, or) {
 
         val result = productItemEntities.map { entityTemplate.insert(it) }.map { it.awaitSingle() }
         log.info("inserted product items: $result")
@@ -32,5 +31,8 @@ class ProductItemBaseRepositoryImpl(
 
     companion object {
         private val log = LoggerFactory.getLogger(ProductItemBaseRepositoryImpl::class.java)
+
+        private const val INSERT = "ProductItemBaseRepository.insert"
+        private const val INSERT_ALL = "ProductItemBaseRepository.insertAll"
     }
 }
