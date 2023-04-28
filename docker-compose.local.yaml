@@ -90,6 +90,33 @@ services:
       MONGODB_DATABASE: bank_accounts
     networks: [ "microservices" ]
 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks: [ "microservices" ]
+
+  node_exporter:
+    container_name: microservices_node_exporter
+    restart: always
+    image: prom/node-exporter
+    ports:
+      - '9101:9100'
+    networks: [ "microservices" ]
+
+  grafana:
+    container_name: microservices_grafana
+    restart: always
+    image: grafana/grafana
+    ports:
+      - '3000:3000'
+    networks: [ "microservices" ]
+
 
 networks:
   microservices:
