@@ -1,20 +1,23 @@
 package com.alexbryksin.ordersmicroservice.order.events
 
 import com.alexbryksin.ordersmicroservice.order.repository.OrderMongoRepository
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import com.alexbryksin.ordersmicroservice.utils.tracing.coroutineScopeWithObservation
+import io.micrometer.observation.ObservationRegistry
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 
 
 @Service
-class OrderEventProcessorImpl(private val orderMongoRepository: OrderMongoRepository) : OrderEventProcessor {
+class OrderEventProcessorImpl(
+    private val orderMongoRepository: OrderMongoRepository,
+    private val or: ObservationRegistry,
+) : OrderEventProcessor {
 
-    override suspend fun on(orderCreatedEvent: OrderCreatedEvent): Unit = withContext(Dispatchers.IO) {
+    override suspend fun on(orderCreatedEvent: OrderCreatedEvent): Unit = coroutineScopeWithObservation("OrderEventProcessor.OrderCreatedEvent", or) {
         orderMongoRepository.insert(orderCreatedEvent.order).also { log.info("created order: $it") }
     }
 
-    override suspend fun on(productItemAddedEvent: ProductItemAddedEvent): Unit = withContext(Dispatchers.IO) {
+    override suspend fun on(productItemAddedEvent: ProductItemAddedEvent): Unit = coroutineScopeWithObservation("OrderEventProcessor.ProductItemAddedEvent", or) {
         orderMongoRepository.getByID(productItemAddedEvent.orderId).let {
             it.addProductItem(productItemAddedEvent.productItem)
             it.version = productItemAddedEvent.version
@@ -23,7 +26,7 @@ class OrderEventProcessorImpl(private val orderMongoRepository: OrderMongoReposi
         }
     }
 
-    override suspend fun on(productItemRemovedEvent: ProductItemRemovedEvent): Unit = withContext(Dispatchers.IO) {
+    override suspend fun on(productItemRemovedEvent: ProductItemRemovedEvent): Unit = coroutineScopeWithObservation("OrderEventProcessor.ProductItemRemovedEvent", or) {
         orderMongoRepository.getByID(productItemRemovedEvent.orderId).let {
             it.removeProductItem(productItemRemovedEvent.productItemId)
             it.version = productItemRemovedEvent.version
@@ -32,7 +35,7 @@ class OrderEventProcessorImpl(private val orderMongoRepository: OrderMongoReposi
         }
     }
 
-    override suspend fun on(orderPaidEvent: OrderPaidEvent): Unit = withContext(Dispatchers.IO) {
+    override suspend fun on(orderPaidEvent: OrderPaidEvent): Unit = coroutineScopeWithObservation("OrderEventProcessor.OrderPaidEvent", or) {
         orderMongoRepository.getByID(orderPaidEvent.orderId).let {
             it.pay(orderPaidEvent.paymentId)
             it.version = orderPaidEvent.version
@@ -41,7 +44,7 @@ class OrderEventProcessorImpl(private val orderMongoRepository: OrderMongoReposi
         }
     }
 
-    override suspend fun on(orderCancelledEvent: OrderCancelledEvent): Unit = withContext(Dispatchers.IO) {
+    override suspend fun on(orderCancelledEvent: OrderCancelledEvent): Unit = coroutineScopeWithObservation("OrderEventProcessor.OrderCancelledEvent", or) {
         orderMongoRepository.getByID(orderCancelledEvent.orderId).let {
             it.cancel()
             it.version = orderCancelledEvent.version
@@ -50,7 +53,7 @@ class OrderEventProcessorImpl(private val orderMongoRepository: OrderMongoReposi
         }
     }
 
-    override suspend fun on(orderSubmittedEvent: OrderSubmittedEvent): Unit = withContext(Dispatchers.IO) {
+    override suspend fun on(orderSubmittedEvent: OrderSubmittedEvent): Unit = coroutineScopeWithObservation("OrderEventProcessor.OrderSubmittedEvent", or) {
         orderMongoRepository.getByID(orderSubmittedEvent.orderId).let {
             it.submit()
             it.version = orderSubmittedEvent.version
@@ -59,7 +62,7 @@ class OrderEventProcessorImpl(private val orderMongoRepository: OrderMongoReposi
         }
     }
 
-    override suspend fun on(orderCompletedEvent: OrderCompletedEvent): Unit = withContext(Dispatchers.IO) {
+    override suspend fun on(orderCompletedEvent: OrderCompletedEvent): Unit = coroutineScopeWithObservation("OrderEventProcessor.OrderCompletedEvent", or) {
         orderMongoRepository.getByID(orderCompletedEvent.orderId).let {
             it.complete()
             it.version = orderCompletedEvent.version

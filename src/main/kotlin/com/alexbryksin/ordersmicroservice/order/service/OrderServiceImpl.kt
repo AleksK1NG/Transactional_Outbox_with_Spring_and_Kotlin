@@ -17,6 +17,8 @@ import com.alexbryksin.ordersmicroservice.order.repository.OrderOutboxRepository
 import com.alexbryksin.ordersmicroservice.order.repository.OrderRepository
 import com.alexbryksin.ordersmicroservice.order.repository.ProductItemRepository
 import com.alexbryksin.ordersmicroservice.utils.serializer.Serializer
+import com.alexbryksin.ordersmicroservice.utils.tracing.coroutineScopeWithObservation
+import io.micrometer.observation.ObservationRegistry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
@@ -42,13 +44,15 @@ class OrderServiceImpl(
     private val txOp: TransactionalOperator,
     private val eventsPublisher: EventsPublisher,
     private val kafkaTopicsConfiguration: KafkaTopicsConfiguration,
+    private val or: ObservationRegistry
 ) : OrderService {
 
-    override suspend fun createOrder(order: Order): Order = coroutineScope {
+    override suspend fun createOrder(order: Order): Order = coroutineScopeWithObservation("OrderService.createOrder", or) {
         txOp.executeAndAwait {
             orderRepository.insert(order).let {
                 val productItemsEntityList = ProductItemEntity.listOf(order.productItems, UUID.fromString(it.id))
                 val insertedItems = productItemRepository.insertAll(productItemsEntityList).toList()
+
                 it.addProductItems(insertedItems.map { item -> item.toProductItem() })
 
                 Pair(it, outboxRepository.save(orderCreatedEventOf(it)))
@@ -59,93 +63,88 @@ class OrderServiceImpl(
         }
     }
 
-    override suspend fun addProductItem(productItem: ProductItem): Unit = coroutineScope {
-        txOp.executeAndAwait {
-            orderRepository.findOrderByID(UUID.fromString(productItem.orderId)).let { order ->
-                order.incVersion()
 
-                productItemRepository.insert(ProductItemEntity.of(productItem)).let { productItemEntity ->
-                    outboxRepository.save(productItemAddedEventOf(order, productItemEntity)).let { savedRecord ->
-                        orderRepository.updateOrderVersion(UUID.fromString(order.id), order.version)
-                            .also { result -> log.info("addOrderItem result: $result, version: ${order.version}") }
-                        savedRecord
-                    }
-                }
-            }
+    override suspend fun addProductItem(productItem: ProductItem): Unit = coroutineScopeWithObservation("OrderService.addProductItem", or) {
+        txOp.executeAndAwait {
+            val order = orderRepository.findOrderByID(UUID.fromString(productItem.orderId))
+            order.incVersion()
+
+            val productItemEntity = productItemRepository.insert(ProductItemEntity.of(productItem))
+
+            val savedRecord = outboxRepository.save(productItemAddedEventOf(order, productItemEntity))
+
+            orderRepository.updateOrderVersion(UUID.fromString(order.id), order.version)
+                .also { result -> log.info("addOrderItem result: $result, version: ${order.version}") }
+
+            savedRecord
         }.run { publish(this) }
     }
 
-    override suspend fun removeProductItem(orderID: UUID, productItemId: UUID): Unit = coroutineScope {
+    override suspend fun removeProductItem(orderID: UUID, productItemId: UUID): Unit = coroutineScopeWithObservation("OrderService.removeProductItem", or) {
         txOp.executeAndAwait {
-            orderRepository.findOrderByID(orderID).let {
-                productItemRepository.deleteById(productItemId)
+            val order = orderRepository.findOrderByID(orderID)
+            productItemRepository.deleteById(productItemId)
 
-                it.incVersion()
+            order.incVersion()
 
-                outboxRepository.save(productItemRemovedEventOf(it, productItemId)).let { savedRecord ->
-                    val result = orderRepository.updateOrderVersion(UUID.fromString(it.id), it.version)
-                    log.info("removeProductItem result: $result, version: ${it.version}")
-                    savedRecord
-                }
-            }
+            val savedRecord = outboxRepository.save(productItemRemovedEventOf(order, productItemId))
+
+            orderRepository.updateOrderVersion(UUID.fromString(order.id), order.version)
+                .also { log.info("removeProductItem update order result: $it, version: ${order.version}") }
+
+            savedRecord
         }.run { publish(this) }
     }
 
-    override suspend fun pay(id: UUID, paymentId: String): Order = coroutineScope {
+    override suspend fun pay(id: UUID, paymentId: String): Order = coroutineScopeWithObservation("OrderService.pay", or) {
         txOp.executeAndAwait {
-            orderRepository.getOrderWithProductItemsByID(id).let {
-                it.pay(paymentId)
+            val order = orderRepository.getOrderWithProductItemsByID(id)
+            order.pay(paymentId)
 
-                orderRepository.update(it).let { updatedOrder ->
-                    Pair(updatedOrder, outboxRepository.save(orderPaidEventOf(updatedOrder, paymentId)))
-                }
-            }
+
+            val updatedOrder = orderRepository.update(order)
+            Pair(updatedOrder, outboxRepository.save(orderPaidEventOf(updatedOrder, paymentId)))
         }.run {
             publish(second)
             first
         }
     }
 
-    override suspend fun cancel(id: UUID, reason: String?): Order = coroutineScope {
+    override suspend fun cancel(id: UUID, reason: String?): Order = coroutineScopeWithObservation("OrderService.cancel", or) {
         txOp.executeAndAwait {
-            orderRepository.findOrderByID(id).let {
-                it.cancel()
+            val order = orderRepository.findOrderByID(id)
+            order.cancel()
 
-                orderRepository.update(it).let { updatedOrder ->
-                    Pair(updatedOrder, outboxRepository.save(orderCancelledEventOf(updatedOrder, reason)))
-                }
-            }
+            orderRepository.update(order).let { Pair(it, outboxRepository.save(orderCancelledEventOf(it, reason))) }
         }.run {
             publish(second)
             first
         }
     }
 
-    override suspend fun submit(id: UUID): Order = coroutineScope {
+    override suspend fun submit(id: UUID): Order = coroutineScopeWithObservation("OrderService.submit", or) {
         txOp.executeAndAwait {
-            orderRepository.getOrderWithProductItemsByID(id).let {
-                it.submit()
+            val order = orderRepository.getOrderWithProductItemsByID(id)
+            order.submit()
 
-                orderRepository.update(it).let { updatedOrder ->
-                    Pair(updatedOrder.addProductItems(it.productItems), outboxRepository.save(orderSubmittedEventOf(updatedOrder)))
-                }
-            }
+            val updatedOrder = orderRepository.update(order)
+            updatedOrder.addProductItems(order.productItems)
+
+            Pair(updatedOrder, outboxRepository.save(orderSubmittedEventOf(updatedOrder)))
         }.run {
             publish(second)
             first
         }
     }
 
-    override suspend fun complete(id: UUID): Order = coroutineScope {
+    override suspend fun complete(id: UUID): Order = coroutineScopeWithObservation("OrderService.complete", or) {
         txOp.executeAndAwait {
-            orderRepository.findOrderByID(id).let {
-                it.complete()
+            val order = orderRepository.findOrderByID(id)
+            order.complete()
 
-                orderRepository.update(it).let { updatedOrder ->
-                    log.info("order submitted: ${updatedOrder.status} for id: $id")
-                    Pair(updatedOrder, outboxRepository.save(orderCompletedEventOf(updatedOrder)))
-                }
-            }
+            val updatedOrder = orderRepository.update(order)
+            log.info("order submitted: ${updatedOrder.status} for id: $id")
+            Pair(updatedOrder, outboxRepository.save(orderCompletedEventOf(updatedOrder)))
         }.run {
             publish(second)
             first
@@ -153,7 +152,7 @@ class OrderServiceImpl(
     }
 
     @Transactional(readOnly = true)
-    override suspend fun getOrderWithProductItemsByID(id: UUID): Order = coroutineScope {
+    override suspend fun getOrderWithProductItemsByID(id: UUID): Order = coroutineScopeWithObservation("OrderService.getOrderWithProductItemsByID", or) {
         orderRepository.getOrderWithProductItemsByID(id)
     }
 
@@ -162,7 +161,7 @@ class OrderServiceImpl(
         return orderRepository.getOrderWithProductItemsByIDMono(id)
     }
 
-    override suspend fun getAllOrders(pageable: Pageable): Page<Order> = coroutineScope {
+    override suspend fun getAllOrders(pageable: Pageable): Page<Order> = coroutineScopeWithObservation("OrderService.getAllOrders", or) {
         orderMongoRepository.getAllOrders(pageable)
     }
 

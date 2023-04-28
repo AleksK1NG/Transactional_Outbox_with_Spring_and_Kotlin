@@ -2,11 +2,11 @@ package com.alexbryksin.ordersmicroservice.order.repository
 
 import com.alexbryksin.ordersmicroservice.order.domain.OutboxRecord
 import com.alexbryksin.ordersmicroservice.order.domain.of
-import kotlinx.coroutines.Dispatchers
+import com.alexbryksin.ordersmicroservice.utils.tracing.coroutineScopeWithObservation
+import io.micrometer.observation.ObservationRegistry
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.reactor.awaitSingle
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.slf4j.LoggerFactory
 import org.springframework.r2dbc.core.DatabaseClient
@@ -18,8 +18,10 @@ import java.util.*
 class OutboxBaseRepositoryImpl(
     private val dbClient: DatabaseClient,
     private val txOp: TransactionalOperator,
+    private val or: ObservationRegistry,
 ) : OutboxBaseRepository {
-    override suspend fun deleteOutboxRecordByID(id: UUID, callback: suspend () -> Unit): Long = withContext(Dispatchers.IO) {
+
+    override suspend fun deleteOutboxRecordByID(id: UUID, callback: suspend () -> Unit): Long = coroutineScopeWithObservation("OutboxBaseRepository.deleteOutboxRecordByID", or) {
         withTimeout(DELETE_OUTBOX_RECORD_TIMEOUT_MILLIS) {
             txOp.executeAndAwait {
 
@@ -35,7 +37,7 @@ class OutboxBaseRepositoryImpl(
         }
     }
 
-    override suspend fun deleteOutboxRecordsWithLock(callback: suspend (outboxRecord: OutboxRecord) -> Unit) = withContext(Dispatchers.IO) {
+    override suspend fun deleteOutboxRecordsWithLock(callback: suspend (outboxRecord: OutboxRecord) -> Unit) = coroutineScopeWithObservation("OutboxBaseRepository.deleteOutboxRecordsWithLock", or) {
         withTimeout(DELETE_OUTBOX_RECORD_TIMEOUT_MILLIS) {
             txOp.executeAndAwait {
                 log.info("starting delete outbox events")

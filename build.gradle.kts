@@ -42,6 +42,9 @@ dependencies {
 	implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.20")
 	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:1.6.4")
 	implementation("org.springframework.boot:spring-boot-starter-data-mongodb-reactive")
+	implementation("io.micrometer:micrometer-tracing-bridge-brave")
+	implementation("io.zipkin.reporter2:zipkin-reporter-brave")
+	runtimeOnly("io.micrometer:micrometer-registry-prometheus")
 }
 
 tasks.withType<KotlinCompile> {
