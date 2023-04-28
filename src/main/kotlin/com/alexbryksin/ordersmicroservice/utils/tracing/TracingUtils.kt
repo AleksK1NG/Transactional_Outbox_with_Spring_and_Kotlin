@@ -85,6 +85,20 @@ suspend fun <T : Any> coroutineScopeWithObservation(name: String, or: Observatio
         .awaitSingle()
 }
 
+suspend fun <T : Any> coroutineScopeWithObservation(name: String, or: ObservationRegistry, vararg fields: Pair<String, String>, block: suspend () -> T): T = coroutineScope {
+    Mono.deferContextual { ctxView ->
+        ContextSnapshot.setThreadLocalsFrom(ctxView, ObservationThreadLocalAccessor.KEY).use { _: ContextSnapshot.Scope ->
+            val obs = Observation.start(name, or)
+            fields.forEach { obs.highCardinalityKeyValue(it.first, it.second) }
+            mono { block() }
+                .doOnError { ex -> obs.error(ex) }
+                .doFinally { obs.stop() }
+        }
+    }
+        .contextCapture()
+        .awaitSingle()
+}
+
 suspend fun <T> runObservationSuspend(name: String, or: ObservationRegistry, block: suspend () -> T) {
     val obs = Observation.start(name, or)
     val scope = obs.openScope()

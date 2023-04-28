@@ -18,7 +18,7 @@ interface OrderService {
     suspend fun submit(id: UUID): Order
     suspend fun complete(id: UUID): Order
 
-    suspend fun getOrderWithProductItemsByID(id: UUID): Order
+    suspend fun getOrderWithProductsByID(id: UUID): Order
     fun getOrderWithProductItemsByIDMono(id: UUID): Mono<Order>
     suspend fun getAllOrders(pageable: Pageable): Page<Order>
 

@@ -21,7 +21,7 @@ class OutboxBaseRepositoryImpl(
     private val or: ObservationRegistry,
 ) : OutboxBaseRepository {
 
-    override suspend fun deleteOutboxRecordByID(id: UUID, callback: suspend () -> Unit): Long = coroutineScopeWithObservation("OutboxBaseRepository.deleteOutboxRecordByID", or) {
+    override suspend fun deleteOutboxRecordByID(id: UUID, callback: suspend () -> Unit): Long = coroutineScopeWithObservation(DELETE_OUTBOX_RECORD_BY_ID, or) {
         withTimeout(DELETE_OUTBOX_RECORD_TIMEOUT_MILLIS) {
             txOp.executeAndAwait {
 
@@ -37,35 +37,39 @@ class OutboxBaseRepositoryImpl(
         }
     }
 
-    override suspend fun deleteOutboxRecordsWithLock(callback: suspend (outboxRecord: OutboxRecord) -> Unit) = coroutineScopeWithObservation("OutboxBaseRepository.deleteOutboxRecordsWithLock", or) {
-        withTimeout(DELETE_OUTBOX_RECORD_TIMEOUT_MILLIS) {
-            txOp.executeAndAwait {
-                log.info("starting delete outbox events")
+    override suspend fun deleteOutboxRecordsWithLock(callback: suspend (outboxRecord: OutboxRecord) -> Unit) =
+        coroutineScopeWithObservation(DELETE_OUTBOX_RECORD_WITH_LOCK, or) {
+            withTimeout(DELETE_OUTBOX_RECORD_TIMEOUT_MILLIS) {
+                txOp.executeAndAwait {
+                    log.info("starting delete outbox events")
 
-                dbClient.sql("SELECT * FROM microservices.outbox_table ORDER BY timestamp ASC LIMIT 10 FOR UPDATE SKIP LOCKED")
-                    .map { row, _ -> OutboxRecord.of(row) }
-                    .flow()
-                    .onEach {
-                        log.info("deleting outboxEvent with id: ${it.eventId}")
+                    dbClient.sql("SELECT * FROM microservices.outbox_table ORDER BY timestamp ASC LIMIT 10 FOR UPDATE SKIP LOCKED")
+                        .map { row, _ -> OutboxRecord.of(row) }
+                        .flow()
+                        .onEach {
+                            log.info("deleting outboxEvent with id: ${it.eventId}")
 
-                        callback(it)
+                            callback(it)
 
-                        dbClient.sql("DELETE FROM microservices.outbox_table WHERE event_id = :eventId")
-                            .bind("eventId", it.eventId!!)
-                            .fetch()
-                            .rowsUpdated()
-                            .awaitSingle()
+                            dbClient.sql("DELETE FROM microservices.outbox_table WHERE event_id = :eventId")
+                                .bind("eventId", it.eventId!!)
+                                .fetch()
+                                .rowsUpdated()
+                                .awaitSingle()
 
-                        log.info("outboxEvent with id: ${it.eventId} published and deleted")
-                    }
-                    .collect()
-                log.info("complete delete outbox events")
+                            log.info("outboxEvent with id: ${it.eventId} published and deleted")
+                        }
+                        .collect()
+                    log.info("complete delete outbox events")
+                }
             }
         }
-    }
 
     companion object {
         private val log = LoggerFactory.getLogger(OutboxBaseRepositoryImpl::class.java)
         private const val DELETE_OUTBOX_RECORD_TIMEOUT_MILLIS = 3000L
+
+        private const val DELETE_OUTBOX_RECORD_WITH_LOCK = "OutboxBaseRepository.deleteOutboxRecordsWithLock"
+        private const val DELETE_OUTBOX_RECORD_BY_ID = "OutboxBaseRepository.deleteOutboxRecordByID"
     }
 }

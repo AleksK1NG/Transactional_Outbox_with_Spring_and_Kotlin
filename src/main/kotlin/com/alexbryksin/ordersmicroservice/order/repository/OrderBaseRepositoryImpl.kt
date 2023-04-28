@@ -30,7 +30,7 @@ class OrderBaseRepositoryImpl(
     private val or: ObservationRegistry
 ) : OrderBaseRepository {
 
-    override suspend fun updateOrderVersion(id: UUID, newVersion: Long): Long = coroutineScopeWithObservation("OrderBaseRepository.updateOrderVersion", or) {
+    override suspend fun updateVersion(id: UUID, newVersion: Long): Long = coroutineScopeWithObservation(UPDATE_VERSION, or) {
         dbClient.sql("UPDATE microservices.orders SET version = (version + 1) WHERE id = :id AND version = :version")
             .bind(ID, id)
             .bind(VERSION, newVersion - 1)
@@ -40,7 +40,7 @@ class OrderBaseRepositoryImpl(
             .also { log.info("for order with id: $id version updated to $newVersion") }
     }
 
-    override suspend fun getOrderWithProductItemsByID(id: UUID): Order = coroutineScopeWithObservation("OrderBaseRepository.getOrderWithProductItemsByID", or) {
+    override suspend fun getOrderWithProductItemsByID(id: UUID): Order = coroutineScopeWithObservation(GET_ORDER_WITH_PRODUCTS_BY_ID, or) {
         dbClient.sql(
             """SELECT o.id, o.email, o.status, o.address, o.version, o.payment_id, o.created_at, o.updated_at, 
             |pi.id as productId, pi.price, pi.title, pi.quantity, pi.order_id, pi.version as itemVersion, pi.created_at as itemCreatedAt, pi.updated_at as itemUpdatedAt
@@ -72,18 +72,18 @@ class OrderBaseRepositoryImpl(
             .doOnNext { log.info("loaded order: $it") }
     }
 
-    override suspend fun findOrderByID(id: UUID): Order = coroutineScopeWithObservation("OrderBaseRepository.findOrderByID", or) {
+    override suspend fun findOrderByID(id: UUID): Order = coroutineScopeWithObservation(FIND_ORDER_BY_ID, or) {
         val query = Query.query(Criteria.where(ID).`is`(id))
         entityTemplate.selectOne(query, OrderEntity::class.java).awaitSingleOrNull()?.toOrder()
             ?: throw OrderNotFoundException(id)
     }
 
-    override suspend fun insert(order: Order): Order = coroutineScopeWithObservation("OrderBaseRepository.insert", or) {
+    override suspend fun insert(order: Order): Order = coroutineScopeWithObservation(INSERT, or) {
         entityTemplate.insert(OrderEntity.of(order)).awaitSingle().toOrder()
             .also { log.info("inserted order: $it") }
     }
 
-    override suspend fun update(order: Order): Order = coroutineScopeWithObservation("OrderBaseRepository.update", or) {
+    override suspend fun update(order: Order): Order = coroutineScopeWithObservation(UPDATE, or) {
         entityTemplate.update(OrderEntity.of(order)).awaitSingle().toOrder()
             .also { log.info("updated order: $it") }
     }
@@ -115,5 +115,11 @@ class OrderBaseRepositoryImpl(
 
     companion object {
         private val log = LoggerFactory.getLogger(OrderBaseRepositoryImpl::class.java)
+
+        private const val UPDATE = "OrderBaseRepository.update"
+        private const val INSERT = "OrderBaseRepository.insert"
+        private const val FIND_ORDER_BY_ID = "OrderBaseRepository.findOrderByID"
+        private const val GET_ORDER_WITH_PRODUCTS_BY_ID = "OrderBaseRepository.getOrderWithProductsByID"
+        private const val UPDATE_VERSION = "OrderBaseRepository.updateVersion"
     }
 }

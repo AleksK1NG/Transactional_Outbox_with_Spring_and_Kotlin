@@ -12,7 +12,7 @@ interface OrderBaseRepository {
 
     fun getOrderWithProductItemsByIDMono(id: UUID): Mono<Order>
 
-    suspend fun updateOrderVersion(id: UUID, newVersion: Long): Long
+    suspend fun updateVersion(id: UUID, newVersion: Long): Long
 
     suspend fun findOrderByID(id: UUID): Order
 

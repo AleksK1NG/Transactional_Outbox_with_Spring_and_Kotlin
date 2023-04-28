@@ -13,11 +13,11 @@ class OrderEventProcessorImpl(
     private val or: ObservationRegistry,
 ) : OrderEventProcessor {
 
-    override suspend fun on(orderCreatedEvent: OrderCreatedEvent): Unit = coroutineScopeWithObservation("OrderEventProcessor.OrderCreatedEvent", or) {
+    override suspend fun on(orderCreatedEvent: OrderCreatedEvent): Unit = coroutineScopeWithObservation(ON_ORDER_CREATED_EVENT, or) {
         orderMongoRepository.insert(orderCreatedEvent.order).also { log.info("created order: $it") }
     }
 
-    override suspend fun on(productItemAddedEvent: ProductItemAddedEvent): Unit = coroutineScopeWithObservation("OrderEventProcessor.ProductItemAddedEvent", or) {
+    override suspend fun on(productItemAddedEvent: ProductItemAddedEvent): Unit = coroutineScopeWithObservation(ON_ORDER_PRODUCT_ADDED_EVENT, or) {
         orderMongoRepository.getByID(productItemAddedEvent.orderId).let {
             it.addProductItem(productItemAddedEvent.productItem)
             it.version = productItemAddedEvent.version
@@ -26,7 +26,7 @@ class OrderEventProcessorImpl(
         }
     }
 
-    override suspend fun on(productItemRemovedEvent: ProductItemRemovedEvent): Unit = coroutineScopeWithObservation("OrderEventProcessor.ProductItemRemovedEvent", or) {
+    override suspend fun on(productItemRemovedEvent: ProductItemRemovedEvent): Unit = coroutineScopeWithObservation(ON_ORDER_PRODUCT_REMOVED_EVENT, or) {
         orderMongoRepository.getByID(productItemRemovedEvent.orderId).let {
             it.removeProductItem(productItemRemovedEvent.productItemId)
             it.version = productItemRemovedEvent.version
@@ -35,7 +35,7 @@ class OrderEventProcessorImpl(
         }
     }
 
-    override suspend fun on(orderPaidEvent: OrderPaidEvent): Unit = coroutineScopeWithObservation("OrderEventProcessor.OrderPaidEvent", or) {
+    override suspend fun on(orderPaidEvent: OrderPaidEvent): Unit = coroutineScopeWithObservation(ON_ORDER_PAID_EVENT, or) {
         orderMongoRepository.getByID(orderPaidEvent.orderId).let {
             it.pay(orderPaidEvent.paymentId)
             it.version = orderPaidEvent.version
@@ -44,7 +44,7 @@ class OrderEventProcessorImpl(
         }
     }
 
-    override suspend fun on(orderCancelledEvent: OrderCancelledEvent): Unit = coroutineScopeWithObservation("OrderEventProcessor.OrderCancelledEvent", or) {
+    override suspend fun on(orderCancelledEvent: OrderCancelledEvent): Unit = coroutineScopeWithObservation(ON_ORDER_CANCELLED_EVENT, or) {
         orderMongoRepository.getByID(orderCancelledEvent.orderId).let {
             it.cancel()
             it.version = orderCancelledEvent.version
@@ -53,7 +53,7 @@ class OrderEventProcessorImpl(
         }
     }
 
-    override suspend fun on(orderSubmittedEvent: OrderSubmittedEvent): Unit = coroutineScopeWithObservation("OrderEventProcessor.OrderSubmittedEvent", or) {
+    override suspend fun on(orderSubmittedEvent: OrderSubmittedEvent): Unit = coroutineScopeWithObservation(ON_ORDER_SUBMITTED_EVENT, or) {
         orderMongoRepository.getByID(orderSubmittedEvent.orderId).let {
             it.submit()
             it.version = orderSubmittedEvent.version
@@ -62,7 +62,7 @@ class OrderEventProcessorImpl(
         }
     }
 
-    override suspend fun on(orderCompletedEvent: OrderCompletedEvent): Unit = coroutineScopeWithObservation("OrderEventProcessor.OrderCompletedEvent", or) {
+    override suspend fun on(orderCompletedEvent: OrderCompletedEvent): Unit = coroutineScopeWithObservation(ON_ORDER_COMPLETED_EVENT, or) {
         orderMongoRepository.getByID(orderCompletedEvent.orderId).let {
             it.complete()
             it.version = orderCompletedEvent.version
@@ -73,5 +73,13 @@ class OrderEventProcessorImpl(
 
     companion object {
         private val log = LoggerFactory.getLogger(OrderEventProcessorImpl::class.java)
+
+        private const val ON_ORDER_COMPLETED_EVENT = "OrderEventProcessor.OrderCompletedEvent"
+        private const val ON_ORDER_SUBMITTED_EVENT = "OrderEventProcessor.OrderSubmittedEvent"
+        private const val ON_ORDER_CANCELLED_EVENT = "OrderEventProcessor.OrderCancelledEvent"
+        private const val ON_ORDER_PAID_EVENT = "OrderEventProcessor.OrderPaidEvent"
+        private const val ON_ORDER_PRODUCT_REMOVED_EVENT = "OrderEventProcessor.ProductItemRemovedEvent"
+        private const val ON_ORDER_PRODUCT_ADDED_EVENT = "OrderEventProcessor.ProductItemAddedEvent"
+        private const val ON_ORDER_CREATED_EVENT = "OrderEventProcessor.OrderCreatedEvent"
     }
 }
