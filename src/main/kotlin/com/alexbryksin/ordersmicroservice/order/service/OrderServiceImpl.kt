@@ -1,8 +1,8 @@
 package com.alexbryksin.ordersmicroservice.order.service
 
-import com.alexbryksin.ordersmicroservice.bankAccount.exceptions.UnknownEventTypeException
 import com.alexbryksin.ordersmicroservice.configuration.KafkaTopicsConfiguration
 import com.alexbryksin.ordersmicroservice.eventPublisher.EventsPublisher
+import com.alexbryksin.ordersmicroservice.exceptions.UnknownEventTypeException
 import com.alexbryksin.ordersmicroservice.order.domain.*
 import com.alexbryksin.ordersmicroservice.order.events.OrderCancelledEvent.Companion.ORDER_CANCELLED_EVENT
 import com.alexbryksin.ordersmicroservice.order.events.OrderCompletedEvent.Companion.ORDER_COMPLETED_EVENT
