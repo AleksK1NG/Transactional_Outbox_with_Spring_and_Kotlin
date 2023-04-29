@@ -15,17 +15,18 @@ class ProductItemBaseRepositoryImpl(
     private val or: ObservationRegistry,
 ) : ProductItemBaseRepository {
 
-    override suspend fun insert(productItemEntity: ProductItemEntity): ProductItemEntity = coroutineScopeWithObservation(INSERT, or) {
-        val result = entityTemplate.insert(productItemEntity).awaitSingle()
+    override suspend fun insert(productItemEntity: ProductItemEntity): ProductItemEntity = coroutineScopeWithObservation(INSERT, or) { observation ->
+        val product = entityTemplate.insert(productItemEntity).awaitSingle()
 
-        log.info("saved product item: $result")
-        result
+        log.info("saved product: $product")
+        observation.highCardinalityKeyValue("product", product.toString())
+        product
     }
 
-    override suspend fun insertAll(productItemEntities: List<ProductItemEntity>) = coroutineScopeWithObservation(INSERT_ALL, or) {
-
+    override suspend fun insertAll(productItemEntities: List<ProductItemEntity>) = coroutineScopeWithObservation(INSERT_ALL, or) { observation ->
         val result = productItemEntities.map { entityTemplate.insert(it) }.map { it.awaitSingle() }
         log.info("inserted product items: $result")
+        observation.highCardinalityKeyValue("result", result.toString())
         result
     }
 

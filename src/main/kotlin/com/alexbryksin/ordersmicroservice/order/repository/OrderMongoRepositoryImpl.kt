@@ -37,12 +37,13 @@ class OrderMongoRepositoryImpl(
     private val or: ObservationRegistry,
 ) : OrderMongoRepository {
 
-    override suspend fun insert(order: Order): Order = coroutineScopeWithObservation(INSERT, or) {
+    override suspend fun insert(order: Order): Order = coroutineScopeWithObservation(INSERT, or) { observation ->
         mongoTemplate.insert(OrderDocument.of(order)).awaitSingle().toOrder()
             .also { log.info("inserted order: $it") }
+            .also { observation.highCardinalityKeyValue("order", it.toString()) }
     }
 
-    override suspend fun update(order: Order): Order = coroutineScopeWithObservation(UPDATE, or) {
+    override suspend fun update(order: Order): Order = coroutineScopeWithObservation(UPDATE, or) { observation ->
         val query = Query.query(Criteria.where(ID).`is`(order.id).and(VERSION).`is`(order.version - 1))
 
         val update = Update()
@@ -57,20 +58,23 @@ class OrderMongoRepositoryImpl(
         val updatedOrderDocument = mongoTemplate.findAndModify(query, update, options, OrderDocument::class.java)
             .awaitSingleOrNull() ?: throw OrderNotFoundException(order.id.toUUID())
 
-        updatedOrderDocument.toOrder().also { log.info("updated order: $it") }
+        observation.highCardinalityKeyValue("order", updatedOrderDocument.toString())
+        updatedOrderDocument.toOrder().also { orderDocument -> log.info("updated order: $orderDocument") }
     }
 
-    override suspend fun getByID(id: String): Order = coroutineScopeWithObservation(GET_BY_ID, or) {
+    override suspend fun getByID(id: String): Order = coroutineScopeWithObservation(GET_BY_ID, or) { observation ->
         mongoTemplate.findById(id, OrderDocument::class.java).awaitSingle().toOrder()
-            .also { log.info("found order document: $it") }
+            .also { log.info("found order: $it") }
+            .also { observation.highCardinalityKeyValue("order", it.toString()) }
     }
 
-    override suspend fun getAllOrders(pageable: Pageable): Page<Order> = coroutineScopeWithObservation(GET_ALL_ORDERS, or) {
+    override suspend fun getAllOrders(pageable: Pageable): Page<Order> = coroutineScopeWithObservation(GET_ALL_ORDERS, or) { observation ->
         withContext(Dispatchers.IO) {
             val query = Query().with(pageable)
             val data = async { mongoTemplate.find(query, OrderDocument::class.java).collectList().awaitSingle() }.await()
             val count = async { mongoTemplate.count(Query(), OrderDocument::class.java).awaitSingle() }.await()
             PageableExecutionUtils.getPage(data.map { it.toOrder() }, pageable) { count }
+                .also { observation.highCardinalityKeyValue("pageResult", it.pageable.toString()) }
         }
     }
 

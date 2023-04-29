@@ -53,12 +53,14 @@ class OrderConsumer(
         ],
     )
     fun process(ack: Acknowledgment, consumerRecord: ConsumerRecord<String, ByteArray>) = runBlocking {
-        coroutineScopeWithObservation(PROCESS, or) {
+        coroutineScopeWithObservation(PROCESS, or) { observation ->
             try {
                 processOutboxRecord(serializer.deserialize(consumerRecord.value(), OutboxRecord::class.java))
                 ack.acknowledge()
                 log.info("committed record topic: ${consumerRecord.topic()} offset: ${consumerRecord.offset()} partition: ${consumerRecord.partition()}")
+                observation.highCardinalityKeyValue("consumerRecord", consumerRecord.toString())
             } catch (ex: Exception) {
+                observation.error(ex)
                 if (ex is SerializationException || ex is UnknownEventTypeException) {
                     log.error("commit not serializable or unknown record: ${String(consumerRecord.value())}")
                     ack.acknowledge()
@@ -74,12 +76,14 @@ class OrderConsumer(
 
     @KafkaListener(groupId = "\${kafka.consumer-group-id:order-service-group-id}", topics = ["\${topics.retryTopic.name}"])
     fun processRetry(ack: Acknowledgment, consumerRecord: ConsumerRecord<String, ByteArray>): Unit = runBlocking {
-        coroutineScopeWithObservation(PROCESS_RETRY, or) {
+        coroutineScopeWithObservation(PROCESS_RETRY, or) { observation ->
             try {
                 processOutboxRecord(serializer.deserialize(consumerRecord.value(), OutboxRecord::class.java))
                 ack.acknowledge()
                 log.info("committed retry record >>>>>>>>>>>>>> topic: ${consumerRecord.topic()} offset: ${consumerRecord.offset()} partition: ${consumerRecord.partition()}")
+                observation.highCardinalityKeyValue("consumerRecord", consumerRecord.toString())
             } catch (ex: Exception) {
+                observation.error(ex)
                 if (ex is SerializationException || ex is UnknownEventTypeException) {
                     ack.acknowledge()
                     log.error("commit not serializable or unknown record: ${String(consumerRecord.value())}")
@@ -109,7 +113,10 @@ class OrderConsumer(
 
 
     private suspend fun publishRetryTopic(topic: String, record: ConsumerRecord<String, ByteArray>, retryCount: Int) {
-        coroutineScopeWithObservation(PUBLISH_RETRY_TOPIC, or) {
+        coroutineScopeWithObservation(PUBLISH_RETRY_TOPIC, or) { observation ->
+            observation.highCardinalityKeyValue("record", record.toString())
+            observation.highCardinalityKeyValue("retryCount", retryCount.toString())
+
             mono { publishRetryRecord(topic, record, retryCount) }
                 .retryWhen(Retry.backoff(PUBLISH_RETRY_COUNT, Duration.ofMillis(PUBLISH_RETRY_BACKOFF_DURATION_MILLIS))
                     .filter { it is SerializationException })
@@ -119,10 +126,12 @@ class OrderConsumer(
 
 
     private suspend fun publishRetryRecord(topic: String, record: ConsumerRecord<String, ByteArray>, retryCount: Int) {
-        coroutineScopeWithObservation(PUBLISH_RETRY_RECORD, or) {
+        coroutineScopeWithObservation(PUBLISH_RETRY_RECORD, or) { observation ->
             log.info("publishing retry record: ${String(record.value())}, retryCount: $retryCount")
             val headersMap = mutableMapOf(RETRY_COUNT_HEADER to retryCount.toString().toByteArray())
             record.headers().forEach { headersMap[it.key()] = it.value() }
+
+            observation.highCardinalityKeyValue("headers", record.headers().toString())
             eventsPublisher.publishRetryRecord(topic, record.key(), record.value(), headersMap)
         }
     }
