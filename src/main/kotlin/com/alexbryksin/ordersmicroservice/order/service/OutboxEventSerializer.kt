@@ -12,7 +12,12 @@ import java.util.*
 @Component
 class OutboxEventSerializer(private val serializer: Serializer) {
 
-    fun orderCreatedEventOf(order: Order) = outboxRecord(order.id, order.version, OrderCreatedEvent(order), OrderCreatedEvent.ORDER_CREATED_EVENT)
+    fun orderCreatedEventOf(order: Order) = outboxRecord(
+        order.id,
+        order.version,
+        OrderCreatedEvent(order),
+        OrderCreatedEvent.ORDER_CREATED_EVENT,
+    )
 
     fun productItemAddedEventOf(order: Order, productItemEntity: ProductItemEntity) = outboxRecord(
         order.id,

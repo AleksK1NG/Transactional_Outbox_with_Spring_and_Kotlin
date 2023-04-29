@@ -20,7 +20,7 @@ class KafkaEventsPublisher(
 ) : EventsPublisher {
 
     override suspend fun publish(topic: String?, data: Any): Unit = withContext(Dispatchers.IO) {
-        coroutineScopeWithObservation("EventsPublisher.publish", or) { observation ->
+        coroutineScopeWithObservation(PUBLISH, or) { observation ->
             val msg = ProducerRecord<String, ByteArray>(topic, objectMapper.writeValueAsBytes(data))
             observation.highCardinalityKeyValue("msg", msg.toString())
 
@@ -31,7 +31,7 @@ class KafkaEventsPublisher(
     }
 
     override suspend fun publish(topic: String?, key: String, data: Any): Unit = withContext(Dispatchers.IO) {
-        coroutineScopeWithObservation("EventsPublisher.publish", or) { observation ->
+        coroutineScopeWithObservation(PUBLISH, or) { observation ->
             val msg = ProducerRecord(topic, key, objectMapper.writeValueAsBytes(data))
             observation.highCardinalityKeyValue("msg", msg.toString())
 
@@ -43,7 +43,7 @@ class KafkaEventsPublisher(
 
     override suspend fun publish(topic: String?, data: Any, headers: Map<String, ByteArray>): Unit =
         withContext(Dispatchers.IO) {
-            coroutineScopeWithObservation("EventsPublisher.publish", or) { observation ->
+            coroutineScopeWithObservation(PUBLISH, or) { observation ->
                 val msg = ProducerRecord<String, ByteArray>(topic, objectMapper.writeValueAsBytes(data))
                 headers.forEach { (key, value) -> msg.headers().add(key, value) }
                 observation.highCardinalityKeyValue("msg", msg.toString())
@@ -56,7 +56,7 @@ class KafkaEventsPublisher(
 
     override suspend fun publish(topic: String?, key: String, data: Any, headers: Map<String, ByteArray>): Unit =
         withContext(Dispatchers.IO) {
-            coroutineScopeWithObservation("EventsPublisher.publish", or) { observation ->
+            coroutineScopeWithObservation(PUBLISH, or) { observation ->
                 val msg = ProducerRecord(topic, key, objectMapper.writeValueAsBytes(data))
                 headers.forEach { (key, value) -> msg.headers().add(key, value) }
                 observation.highCardinalityKeyValue("msg", msg.toString())
@@ -69,7 +69,7 @@ class KafkaEventsPublisher(
 
     override suspend fun publishRetryRecord(topic: String?, data: ByteArray, headers: Map<String, ByteArray>): Unit =
         withContext(Dispatchers.IO) {
-            coroutineScopeWithObservation("EventsPublisher.publish", or) { observation ->
+            coroutineScopeWithObservation(PUBLISH, or) { observation ->
                 val msg = ProducerRecord<String, ByteArray>(topic, data)
                 headers.forEach { (key, value) -> msg.headers().add(key, value) }
                 observation.highCardinalityKeyValue("msg", msg.toString())
@@ -86,7 +86,7 @@ class KafkaEventsPublisher(
         data: ByteArray,
         headers: Map<String, ByteArray>
     ): Unit = withContext(Dispatchers.IO) {
-        coroutineScopeWithObservation("EventsPublisher.publish", or) { observation ->
+        coroutineScopeWithObservation(PUBLISH, or) { observation ->
             val msg = ProducerRecord(topic, key, data)
             headers.forEach { (key, value) -> msg.headers().add(key, value) }
             observation.highCardinalityKeyValue("msg", msg.toString())
@@ -100,5 +100,7 @@ class KafkaEventsPublisher(
 
     companion object {
         private val log = LoggerFactory.getLogger(KafkaEventsPublisher::class.java)
+
+        private const val PUBLISH = "EventsPublisher.publish"
     }
 }
