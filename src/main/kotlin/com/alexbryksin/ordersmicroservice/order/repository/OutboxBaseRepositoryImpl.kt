@@ -21,24 +21,28 @@ class OutboxBaseRepositoryImpl(
     private val or: ObservationRegistry,
 ) : OutboxBaseRepository {
 
-    override suspend fun deleteOutboxRecordByID(id: UUID, callback: suspend () -> Unit): Long = coroutineScopeWithObservation(DELETE_OUTBOX_RECORD_BY_ID, or) {
-        withTimeout(DELETE_OUTBOX_RECORD_TIMEOUT_MILLIS) {
-            txOp.executeAndAwait {
+    override suspend fun deleteOutboxRecordByID(id: UUID, callback: suspend () -> Unit): Long =
+        coroutineScopeWithObservation(DELETE_OUTBOX_RECORD_BY_ID, or) { observation ->
+            withTimeout(DELETE_OUTBOX_RECORD_TIMEOUT_MILLIS) {
+                txOp.executeAndAwait {
 
-                callback()
+                    callback()
 
-                dbClient.sql("DELETE FROM microservices.outbox_table WHERE event_id = :eventId")
-                    .bind("eventId", id)
-                    .fetch()
-                    .rowsUpdated()
-                    .awaitSingle()
-                    .also { log.info("outbox event with id: $it deleted") }
+                    dbClient.sql("DELETE FROM microservices.outbox_table WHERE event_id = :eventId")
+                        .bind("eventId", id)
+                        .fetch()
+                        .rowsUpdated()
+                        .awaitSingle()
+                        .also {
+                            log.info("outbox event with id: $it deleted")
+                            observation.highCardinalityKeyValue("id", it.toString())
+                        }
+                }
             }
         }
-    }
 
     override suspend fun deleteOutboxRecordsWithLock(callback: suspend (outboxRecord: OutboxRecord) -> Unit) =
-        coroutineScopeWithObservation(DELETE_OUTBOX_RECORD_WITH_LOCK, or) {
+        coroutineScopeWithObservation(DELETE_OUTBOX_RECORD_WITH_LOCK, or) { observation ->
             withTimeout(DELETE_OUTBOX_RECORD_TIMEOUT_MILLIS) {
                 txOp.executeAndAwait {
                     log.info("starting delete outbox events")
@@ -58,6 +62,7 @@ class OutboxBaseRepositoryImpl(
                                 .awaitSingle()
 
                             log.info("outboxEvent with id: ${it.eventId} published and deleted")
+                            observation.highCardinalityKeyValue("eventId", it.eventId.toString())
                         }
                         .collect()
                     log.info("complete delete outbox events")

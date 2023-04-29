@@ -30,7 +30,7 @@ class OrderBaseRepositoryImpl(
     private val or: ObservationRegistry
 ) : OrderBaseRepository {
 
-    override suspend fun updateVersion(id: UUID, newVersion: Long): Long = coroutineScopeWithObservation(UPDATE_VERSION, or) {
+    override suspend fun updateVersion(id: UUID, newVersion: Long): Long = coroutineScopeWithObservation(UPDATE_VERSION, or) { observation ->
         dbClient.sql("UPDATE microservices.orders SET version = (version + 1) WHERE id = :id AND version = :version")
             .bind(ID, id)
             .bind(VERSION, newVersion - 1)
@@ -38,9 +38,13 @@ class OrderBaseRepositoryImpl(
             .rowsUpdated()
             .awaitSingle()
             .also { log.info("for order with id: $id version updated to $newVersion") }
+            .also {
+                observation.highCardinalityKeyValue("id", id.toString())
+                observation.highCardinalityKeyValue("newVersion", newVersion.toString())
+            }
     }
 
-    override suspend fun getOrderWithProductItemsByID(id: UUID): Order = coroutineScopeWithObservation(GET_ORDER_WITH_PRODUCTS_BY_ID, or) {
+    override suspend fun getOrderWithProductItemsByID(id: UUID): Order = coroutineScopeWithObservation(GET_ORDER_WITH_PRODUCTS_BY_ID, or) { observation ->
         dbClient.sql(
             """SELECT o.id, o.email, o.status, o.address, o.version, o.payment_id, o.created_at, o.updated_at, 
             |pi.id as productId, pi.price, pi.title, pi.quantity, pi.order_id, pi.version as itemVersion, pi.created_at as itemCreatedAt, pi.updated_at as itemUpdatedAt
@@ -53,7 +57,10 @@ class OrderBaseRepositoryImpl(
             .flow()
             .toList()
             .let { orderFromList(it) }
-            .also { log.info("loaded order: $it") }
+            .also {
+                log.info("loaded order: $it")
+                observation.highCardinalityKeyValue("order", it.toString())
+            }
     }
 
     override fun getOrderWithProductItemsByIDMono(id: UUID): Mono<Order> {
@@ -72,20 +79,27 @@ class OrderBaseRepositoryImpl(
             .doOnNext { log.info("loaded order: $it") }
     }
 
-    override suspend fun findOrderByID(id: UUID): Order = coroutineScopeWithObservation(FIND_ORDER_BY_ID, or) {
+    override suspend fun findOrderByID(id: UUID): Order = coroutineScopeWithObservation(FIND_ORDER_BY_ID, or) { observation ->
         val query = Query.query(Criteria.where(ID).`is`(id))
         entityTemplate.selectOne(query, OrderEntity::class.java).awaitSingleOrNull()?.toOrder()
+            .also { observation.highCardinalityKeyValue("order", it.toString()) }
             ?: throw OrderNotFoundException(id)
     }
 
-    override suspend fun insert(order: Order): Order = coroutineScopeWithObservation(INSERT, or) {
+    override suspend fun insert(order: Order): Order = coroutineScopeWithObservation(INSERT, or) { observation ->
         entityTemplate.insert(OrderEntity.of(order)).awaitSingle().toOrder()
-            .also { log.info("inserted order: $it") }
+            .also {
+                log.info("inserted order: $it")
+                observation.highCardinalityKeyValue("order", it.toString())
+            }
     }
 
-    override suspend fun update(order: Order): Order = coroutineScopeWithObservation(UPDATE, or) {
+    override suspend fun update(order: Order): Order = coroutineScopeWithObservation(UPDATE, or) { observation ->
         entityTemplate.update(OrderEntity.of(order)).awaitSingle().toOrder()
-            .also { log.info("updated order: $it") }
+            .also {
+                log.info("updated order: $it")
+                observation.highCardinalityKeyValue("order", it.toString())
+            }
     }
 
 

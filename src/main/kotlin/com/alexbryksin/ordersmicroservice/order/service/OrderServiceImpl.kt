@@ -41,7 +41,7 @@ class OrderServiceImpl(
     private val outboxEventSerializer: OutboxEventSerializer
 ) : OrderService {
 
-    override suspend fun createOrder(order: Order): Order = coroutineScopeWithObservation(CREATE, or, Pair("order", order.toString())) {
+    override suspend fun createOrder(order: Order): Order = coroutineScopeWithObservation(CREATE, or) { observation ->
         txOp.executeAndAwait {
             orderRepository.insert(order).let {
                 val productItemsEntityList = ProductItemEntity.listOf(order.productItems, UUID.fromString(it.id))
@@ -52,30 +52,33 @@ class OrderServiceImpl(
                 Pair(it, outboxRepository.save(outboxEventSerializer.orderCreatedEventOf(it)))
             }
         }.run {
+            observation.highCardinalityKeyValue("order", first.toString())
+            observation.highCardinalityKeyValue("outboxEvent", second.toString())
             publishOutboxEvent(second)
             first
         }
     }
 
-    override suspend fun addProductItem(productItem: ProductItem): Unit =
-        coroutineScopeWithObservation(ADD_PRODUCT, or, Pair("productItem", productItem.toString())) {
+    override suspend fun addProductItem(productItem: ProductItem): Unit = coroutineScopeWithObservation(ADD_PRODUCT, or) { observation ->
+        txOp.executeAndAwait {
+            val order = orderRepository.findOrderByID(UUID.fromString(productItem.orderId))
+            order.incVersion()
 
-            txOp.executeAndAwait {
-                val order = orderRepository.findOrderByID(UUID.fromString(productItem.orderId))
-                order.incVersion()
+            val productItemEntity = productItemRepository.insert(ProductItemEntity.of(productItem))
 
-                val productItemEntity = productItemRepository.insert(ProductItemEntity.of(productItem))
+            val savedRecord = outboxRepository.save(outboxEventSerializer.productItemAddedEventOf(order, productItemEntity))
 
-                val savedRecord = outboxRepository.save(outboxEventSerializer.productItemAddedEventOf(order, productItemEntity))
+            orderRepository.updateVersion(UUID.fromString(order.id), order.version)
+                .also { result -> log.info("addOrderItem result: $result, version: ${order.version}") }
 
-                orderRepository.updateVersion(UUID.fromString(order.id), order.version)
-                    .also { result -> log.info("addOrderItem result: $result, version: ${order.version}") }
-
-                savedRecord
-            }.run { publishOutboxEvent(this) }
+            savedRecord
+        }.run {
+            observation.highCardinalityKeyValue("outboxEvent", this.toString())
+            publishOutboxEvent(this)
         }
+    }
 
-    override suspend fun removeProductItem(orderID: UUID, productItemId: UUID): Unit = coroutineScopeWithObservation(REMOVE_PRODUCT, or) {
+    override suspend fun removeProductItem(orderID: UUID, productItemId: UUID): Unit = coroutineScopeWithObservation(REMOVE_PRODUCT, or) { observation ->
         txOp.executeAndAwait {
             val order = orderRepository.findOrderByID(orderID)
             productItemRepository.deleteById(productItemId)
@@ -88,24 +91,28 @@ class OrderServiceImpl(
                 .also { log.info("removeProductItem update order result: $it, version: ${order.version}") }
 
             savedRecord
-        }.run { publishOutboxEvent(this) }
+        }.run {
+            observation.highCardinalityKeyValue("outboxEvent", this.toString())
+            publishOutboxEvent(this)
+        }
     }
 
-    override suspend fun pay(id: UUID, paymentId: String): Order = coroutineScopeWithObservation(PAY, or) {
+    override suspend fun pay(id: UUID, paymentId: String): Order = coroutineScopeWithObservation(PAY, or) { observation ->
         txOp.executeAndAwait {
             val order = orderRepository.getOrderWithProductItemsByID(id)
             order.pay(paymentId)
 
-
             val updatedOrder = orderRepository.update(order)
             Pair(updatedOrder, outboxRepository.save(outboxEventSerializer.orderPaidEventOf(updatedOrder, paymentId)))
         }.run {
+            observation.highCardinalityKeyValue("order", first.toString())
+            observation.highCardinalityKeyValue("outboxEvent", second.toString())
             publishOutboxEvent(second)
             first
         }
     }
 
-    override suspend fun cancel(id: UUID, reason: String?): Order = coroutineScopeWithObservation(CANCEL, or) {
+    override suspend fun cancel(id: UUID, reason: String?): Order = coroutineScopeWithObservation(CANCEL, or) { observation ->
         txOp.executeAndAwait {
             val order = orderRepository.findOrderByID(id)
             order.cancel()
@@ -113,12 +120,14 @@ class OrderServiceImpl(
             val updatedOrder = orderRepository.update(order)
             Pair(updatedOrder, outboxRepository.save(outboxEventSerializer.orderCancelledEventOf(updatedOrder, reason)))
         }.run {
+            observation.highCardinalityKeyValue("order", first.toString())
+            observation.highCardinalityKeyValue("outboxEvent", second.toString())
             publishOutboxEvent(second)
             first
         }
     }
 
-    override suspend fun submit(id: UUID): Order = coroutineScopeWithObservation(SUBMIT, or) {
+    override suspend fun submit(id: UUID): Order = coroutineScopeWithObservation(SUBMIT, or) { observation ->
         txOp.executeAndAwait {
             val order = orderRepository.getOrderWithProductItemsByID(id)
             order.submit()
@@ -128,12 +137,14 @@ class OrderServiceImpl(
 
             Pair(updatedOrder, outboxRepository.save(outboxEventSerializer.orderSubmittedEventOf(updatedOrder)))
         }.run {
+            observation.highCardinalityKeyValue("order", first.toString())
+            observation.highCardinalityKeyValue("outboxEvent", second.toString())
             publishOutboxEvent(second)
             first
         }
     }
 
-    override suspend fun complete(id: UUID): Order = coroutineScopeWithObservation(COMPLETE, or) {
+    override suspend fun complete(id: UUID): Order = coroutineScopeWithObservation(COMPLETE, or) { observation ->
         txOp.executeAndAwait {
             val order = orderRepository.findOrderByID(id)
             order.complete()
@@ -142,14 +153,16 @@ class OrderServiceImpl(
             log.info("order submitted: ${updatedOrder.status} for id: $id")
             Pair(updatedOrder, outboxRepository.save(outboxEventSerializer.orderCompletedEventOf(updatedOrder)))
         }.run {
+            observation.highCardinalityKeyValue("order", first.toString())
+            observation.highCardinalityKeyValue("outboxEvent", second.toString())
             publishOutboxEvent(second)
             first
         }
     }
 
     @Transactional(readOnly = true)
-    override suspend fun getOrderWithProductsByID(id: UUID): Order = coroutineScopeWithObservation(GET_ORDER_WITH_PRODUCTS_BY_ID, or) {
-        orderRepository.getOrderWithProductItemsByID(id)
+    override suspend fun getOrderWithProductsByID(id: UUID): Order = coroutineScopeWithObservation(GET_ORDER_WITH_PRODUCTS_BY_ID, or) { observation ->
+        orderRepository.getOrderWithProductItemsByID(id).also { observation.highCardinalityKeyValue("order", it.toString()) }
     }
 
     @Transactional(readOnly = true)
@@ -157,28 +170,37 @@ class OrderServiceImpl(
         return orderRepository.getOrderWithProductItemsByIDMono(id)
     }
 
-    override suspend fun getAllOrders(pageable: Pageable): Page<Order> = coroutineScopeWithObservation(GET_ALL_ORDERS, or) {
-        orderMongoRepository.getAllOrders(pageable)
+    override suspend fun getAllOrders(pageable: Pageable): Page<Order> = coroutineScopeWithObservation(GET_ALL_ORDERS, or) { observation ->
+        orderMongoRepository.getAllOrders(pageable).also { observation.highCardinalityKeyValue("pageResult", it.toString()) }
     }
 
-    override suspend fun deleteOutboxRecordsWithLock() = coroutineScopeWithObservation(DELETE_OUTBOX_RECORD_WITH_LOCK, or) {
-        outboxRepository.deleteOutboxRecordsWithLock { eventsPublisher.publish(getTopicName(it.eventType), it) }
+    override suspend fun deleteOutboxRecordsWithLock() = coroutineScopeWithObservation(DELETE_OUTBOX_RECORD_WITH_LOCK, or) { observation ->
+        outboxRepository.deleteOutboxRecordsWithLock {
+            observation.highCardinalityKeyValue("outboxEvent", it.toString())
+            eventsPublisher.publish(getTopicName(it.eventType), it)
+        }
     }
 
 
-    override suspend fun getOrderByID(id: UUID): Order = coroutineScopeWithObservation(GET_ORDER_BY_ID, or) {
-        orderMongoRepository.getByID(id.toString()).also { log.info("getOrderByID: $it") }
+    override suspend fun getOrderByID(id: UUID): Order = coroutineScopeWithObservation(GET_ORDER_BY_ID, or) { observation ->
+        orderMongoRepository.getByID(id.toString())
+            .also { log.info("getOrderByID: $it") }
+            .also { observation.highCardinalityKeyValue("order", it.toString()) }
     }
 
-    private suspend fun publishOutboxEvent(event: OutboxRecord) = coroutineScopeWithObservation(PUBLISH_OUTBOX_EVENT, or) {
+    private suspend fun publishOutboxEvent(event: OutboxRecord) = coroutineScopeWithObservation(PUBLISH_OUTBOX_EVENT, or) {observation ->
         try {
             log.info("publishing outbox event >>>>>: $event")
+
             outboxRepository.deleteOutboxRecordByID(event.eventId!!) {
                 eventsPublisher.publish(getTopicName(event.eventType), event.aggregateId.toString(), event)
             }
+
             log.info("outbox event published and deleted >>>>>>: $event")
+            observation.highCardinalityKeyValue("event", event.toString())
         } catch (ex: Exception) {
             log.error("exception while publishing outbox event: ${ex.localizedMessage}")
+            observation.error(ex)
         }
     }
 

@@ -13,61 +13,85 @@ class OrderEventProcessorImpl(
     private val or: ObservationRegistry,
 ) : OrderEventProcessor {
 
-    override suspend fun on(orderCreatedEvent: OrderCreatedEvent): Unit = coroutineScopeWithObservation(ON_ORDER_CREATED_EVENT, or) {
-        orderMongoRepository.insert(orderCreatedEvent.order).also { log.info("created order: $it") }
+    override suspend fun on(orderCreatedEvent: OrderCreatedEvent): Unit = coroutineScopeWithObservation(ON_ORDER_CREATED_EVENT, or) { observation ->
+        orderMongoRepository.insert(orderCreatedEvent.order)
+            .also {
+                log.info("created order: $it")
+                observation.highCardinalityKeyValue("order", it.toString())
+            }
     }
 
-    override suspend fun on(productItemAddedEvent: ProductItemAddedEvent): Unit = coroutineScopeWithObservation(ON_ORDER_PRODUCT_ADDED_EVENT, or) {
-        orderMongoRepository.getByID(productItemAddedEvent.orderId).let {
-            it.addProductItem(productItemAddedEvent.productItem)
-            it.version = productItemAddedEvent.version
+    override suspend fun on(productItemAddedEvent: ProductItemAddedEvent): Unit =
+        coroutineScopeWithObservation(ON_ORDER_PRODUCT_ADDED_EVENT, or) { observation ->
+            orderMongoRepository.getByID(productItemAddedEvent.orderId).let {
+                it.addProductItem(productItemAddedEvent.productItem)
+                it.version = productItemAddedEvent.version
 
-            orderMongoRepository.update(it).also { order -> log.info("productItemAddedEvent updatedOrder: $order") }
+                orderMongoRepository.update(it).also { order ->
+                    log.info("productItemAddedEvent updatedOrder: $order")
+                    observation.highCardinalityKeyValue("order", order.toString())
+                }
+            }
         }
-    }
 
-    override suspend fun on(productItemRemovedEvent: ProductItemRemovedEvent): Unit = coroutineScopeWithObservation(ON_ORDER_PRODUCT_REMOVED_EVENT, or) {
-        orderMongoRepository.getByID(productItemRemovedEvent.orderId).let {
-            it.removeProductItem(productItemRemovedEvent.productItemId)
-            it.version = productItemRemovedEvent.version
+    override suspend fun on(productItemRemovedEvent: ProductItemRemovedEvent): Unit =
+        coroutineScopeWithObservation(ON_ORDER_PRODUCT_REMOVED_EVENT, or) { observation ->
+            orderMongoRepository.getByID(productItemRemovedEvent.orderId).let {
+                it.removeProductItem(productItemRemovedEvent.productItemId)
+                it.version = productItemRemovedEvent.version
 
-            orderMongoRepository.update(it).also { order -> log.info("productItemRemovedEvent updatedOrder: $order") }
+                orderMongoRepository.update(it).also { order ->
+                    log.info("productItemRemovedEvent updatedOrder: $order")
+                    observation.highCardinalityKeyValue("order", order.toString())
+                }
+            }
         }
-    }
 
-    override suspend fun on(orderPaidEvent: OrderPaidEvent): Unit = coroutineScopeWithObservation(ON_ORDER_PAID_EVENT, or) {
+    override suspend fun on(orderPaidEvent: OrderPaidEvent): Unit = coroutineScopeWithObservation(ON_ORDER_PAID_EVENT, or) { observation ->
         orderMongoRepository.getByID(orderPaidEvent.orderId).let {
             it.pay(orderPaidEvent.paymentId)
             it.version = orderPaidEvent.version
 
-            orderMongoRepository.update(it).also { order -> log.info("orderPaidEvent updatedOrder: $order") }
+            orderMongoRepository.update(it).also { order ->
+                log.info("orderPaidEvent updatedOrder: $order")
+                observation.highCardinalityKeyValue("order", order.toString())
+            }
         }
     }
 
-    override suspend fun on(orderCancelledEvent: OrderCancelledEvent): Unit = coroutineScopeWithObservation(ON_ORDER_CANCELLED_EVENT, or) {
+    override suspend fun on(orderCancelledEvent: OrderCancelledEvent): Unit = coroutineScopeWithObservation(ON_ORDER_CANCELLED_EVENT, or) { observation ->
         orderMongoRepository.getByID(orderCancelledEvent.orderId).let {
             it.cancel()
             it.version = orderCancelledEvent.version
 
-            orderMongoRepository.update(it).also { order -> log.info("orderCancelledEvent updatedOrder: $order") }
+            orderMongoRepository.update(it).also { order ->
+                log.info("orderCancelledEvent updatedOrder: $order")
+                observation.highCardinalityKeyValue("order", order.toString())
+            }
         }
     }
 
-    override suspend fun on(orderSubmittedEvent: OrderSubmittedEvent): Unit = coroutineScopeWithObservation(ON_ORDER_SUBMITTED_EVENT, or) {
+    override suspend fun on(orderSubmittedEvent: OrderSubmittedEvent): Unit = coroutineScopeWithObservation(ON_ORDER_SUBMITTED_EVENT, or) { observation ->
         orderMongoRepository.getByID(orderSubmittedEvent.orderId).let {
             it.submit()
             it.version = orderSubmittedEvent.version
 
-            orderMongoRepository.update(it).also { order -> log.info("orderSubmittedEvent updatedOrder: $order") }
+            orderMongoRepository.update(it).also { order ->
+                log.info("orderSubmittedEvent updatedOrder: $order")
+                observation.highCardinalityKeyValue("order", order.toString())
+            }
         }
     }
 
-    override suspend fun on(orderCompletedEvent: OrderCompletedEvent): Unit = coroutineScopeWithObservation(ON_ORDER_COMPLETED_EVENT, or) {
+    override suspend fun on(orderCompletedEvent: OrderCompletedEvent): Unit = coroutineScopeWithObservation(ON_ORDER_COMPLETED_EVENT, or) { observation ->
         orderMongoRepository.getByID(orderCompletedEvent.orderId).let {
             it.complete()
             it.version = orderCompletedEvent.version
 
-            orderMongoRepository.update(it).also { order -> log.info("orderCompletedEvent updatedOrder: $order") }
+            orderMongoRepository.update(it).also { order ->
+                log.info("orderCompletedEvent updatedOrder: $order")
+                observation.highCardinalityKeyValue("order", order.toString())
+            }
         }
     }
 

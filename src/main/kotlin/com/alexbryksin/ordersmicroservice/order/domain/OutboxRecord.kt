@@ -18,6 +18,9 @@ data class OutboxRecord(
     @Column(VERSION) var version: Long = 0,
     @Column(TIMESTAMP) var timestamp: LocalDateTime?,
 ) {
+
+
+
     companion object {
         const val EVENT_ID = "event_id"
         const val EVENT_TYPE = "event_type"
@@ -25,6 +28,10 @@ data class OutboxRecord(
         const val DATA = "data"
         const val VERSION = "version"
         const val TIMESTAMP = "timestamp"
+    }
+
+    override fun toString(): String {
+        return "OutboxRecord(eventId=$eventId, eventType=$eventType, aggregateId=$aggregateId, data=${String(data)}, version=$version, timestamp=$timestamp)"
     }
 }
 
