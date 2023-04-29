@@ -19,49 +19,64 @@ class KafkaEventsPublisher(
     private val or: ObservationRegistry
 ) : EventsPublisher {
 
-    override suspend fun publish(topic: String?, data: Any) = withContext(Dispatchers.IO) {
-        coroutineScopeWithObservation("EventsPublisher.publish", or) {
+    override suspend fun publish(topic: String?, data: Any): Unit = withContext(Dispatchers.IO) {
+        coroutineScopeWithObservation("EventsPublisher.publish", or) { observation ->
             val msg = ProducerRecord<String, ByteArray>(topic, objectMapper.writeValueAsBytes(data))
+            observation.highCardinalityKeyValue("msg", msg.toString())
+
             val result = kafkaTemplate.send(msg).await()
             log.info("publish sendResult: $result")
+            observation.highCardinalityKeyValue("result", result.toString())
         }
     }
 
-    override suspend fun publish(topic: String?, key: String, data: Any) = withContext(Dispatchers.IO) {
-        coroutineScopeWithObservation("EventsPublisher.publish", or) {
+    override suspend fun publish(topic: String?, key: String, data: Any): Unit = withContext(Dispatchers.IO) {
+        coroutineScopeWithObservation("EventsPublisher.publish", or) { observation ->
             val msg = ProducerRecord(topic, key, objectMapper.writeValueAsBytes(data))
+            observation.highCardinalityKeyValue("msg", msg.toString())
+
             val result = kafkaTemplate.send(msg).await()
             log.info("publish sendResult: $result")
+            observation.highCardinalityKeyValue("result", result.toString())
         }
     }
 
-    override suspend fun publish(topic: String?, data: Any, headers: Map<String, ByteArray>) =
+    override suspend fun publish(topic: String?, data: Any, headers: Map<String, ByteArray>): Unit =
         withContext(Dispatchers.IO) {
-            coroutineScopeWithObservation("EventsPublisher.publish", or) {
+            coroutineScopeWithObservation("EventsPublisher.publish", or) { observation ->
                 val msg = ProducerRecord<String, ByteArray>(topic, objectMapper.writeValueAsBytes(data))
                 headers.forEach { (key, value) -> msg.headers().add(key, value) }
+                observation.highCardinalityKeyValue("msg", msg.toString())
+
                 val result = kafkaTemplate.send(msg).await()
                 log.info("publish sendResult: $result")
+                observation.highCardinalityKeyValue("result", result.toString())
             }
         }
 
-    override suspend fun publish(topic: String?, key: String, data: Any, headers: Map<String, ByteArray>) =
+    override suspend fun publish(topic: String?, key: String, data: Any, headers: Map<String, ByteArray>): Unit =
         withContext(Dispatchers.IO) {
-            coroutineScopeWithObservation("EventsPublisher.publish", or) {
+            coroutineScopeWithObservation("EventsPublisher.publish", or) { observation ->
                 val msg = ProducerRecord(topic, key, objectMapper.writeValueAsBytes(data))
                 headers.forEach { (key, value) -> msg.headers().add(key, value) }
+                observation.highCardinalityKeyValue("msg", msg.toString())
+
                 val result = kafkaTemplate.send(msg).await()
                 log.info("publish sendResult: $result")
+                observation.highCardinalityKeyValue("result", result.toString())
             }
         }
 
-    override suspend fun publishRetryRecord(topic: String?, data: ByteArray, headers: Map<String, ByteArray>) =
+    override suspend fun publishRetryRecord(topic: String?, data: ByteArray, headers: Map<String, ByteArray>): Unit =
         withContext(Dispatchers.IO) {
-            coroutineScopeWithObservation("EventsPublisher.publish", or) {
+            coroutineScopeWithObservation("EventsPublisher.publish", or) { observation ->
                 val msg = ProducerRecord<String, ByteArray>(topic, data)
                 headers.forEach { (key, value) -> msg.headers().add(key, value) }
+                observation.highCardinalityKeyValue("msg", msg.toString())
+
                 val result = kafkaTemplate.send(msg).await()
                 log.info("publish sendResult: $result")
+                observation.highCardinalityKeyValue("result", result.toString())
             }
         }
 
@@ -70,12 +85,16 @@ class KafkaEventsPublisher(
         key: String,
         data: ByteArray,
         headers: Map<String, ByteArray>
-    ) = withContext(Dispatchers.IO) {
-        coroutineScopeWithObservation("EventsPublisher.publish", or) {
+    ): Unit = withContext(Dispatchers.IO) {
+        coroutineScopeWithObservation("EventsPublisher.publish", or) { observation ->
             val msg = ProducerRecord(topic, key, data)
             headers.forEach { (key, value) -> msg.headers().add(key, value) }
+            observation.highCardinalityKeyValue("msg", msg.toString())
+            observation.highCardinalityKeyValue("headers", headers.toString())
+
             val result = kafkaTemplate.send(msg).await()
             log.info("publish sendResult: $result")
+            observation.highCardinalityKeyValue("result", result.toString())
         }
     }
 
