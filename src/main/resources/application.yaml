@@ -107,21 +107,3 @@ topics:
     name: dead-letter-queue
     partitions: 3
     replication: 1
-
-
-  bankAccountCreated:
-    name: bank-account-created
-    partitions: 3
-    replication: 1
-  balanceDeposited:
-    name: balance-deposited
-    partitions: 3
-    replication: 1
-  balanceWithdrawn:
-    name: balance-withdrawn
-    partitions: 3
-    replication: 1
-  emailChanged:
-    name: email-changed
-    partitions: 3
-    replication: 1

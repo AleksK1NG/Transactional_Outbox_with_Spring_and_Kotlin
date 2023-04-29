@@ -1,10 +1,9 @@
 package com.alexbryksin.ordersmicroservice.order.consumer
 
-import com.alexbryksin.ordersmicroservice.bankAccount.consumer.OutboxConsumer
-import com.alexbryksin.ordersmicroservice.bankAccount.exceptions.InvalidVersionException
-import com.alexbryksin.ordersmicroservice.bankAccount.exceptions.UnknownEventTypeException
+
 import com.alexbryksin.ordersmicroservice.configuration.KafkaTopicsConfiguration
 import com.alexbryksin.ordersmicroservice.eventPublisher.EventsPublisher
+import com.alexbryksin.ordersmicroservice.exceptions.UnknownEventTypeException
 import com.alexbryksin.ordersmicroservice.order.domain.OutboxRecord
 import com.alexbryksin.ordersmicroservice.order.events.*
 import com.alexbryksin.ordersmicroservice.order.events.OrderCancelledEvent.Companion.ORDER_CANCELLED_EVENT
@@ -14,6 +13,7 @@ import com.alexbryksin.ordersmicroservice.order.events.OrderPaidEvent.Companion.
 import com.alexbryksin.ordersmicroservice.order.events.OrderSubmittedEvent.Companion.ORDER_SUBMITTED_EVENT
 import com.alexbryksin.ordersmicroservice.order.events.ProductItemAddedEvent.Companion.PRODUCT_ITEM_ADDED_EVENT
 import com.alexbryksin.ordersmicroservice.order.events.ProductItemRemovedEvent.Companion.PRODUCT_ITEM_REMOVED_EVENT
+import com.alexbryksin.ordersmicroservice.order.exceptions.InvalidVersionException
 import com.alexbryksin.ordersmicroservice.utils.kafkaUtils.getHeader
 import com.alexbryksin.ordersmicroservice.utils.serializer.SerializationException
 import com.alexbryksin.ordersmicroservice.utils.serializer.Serializer
@@ -192,7 +192,7 @@ class OrderConsumer(
     }
 
     companion object {
-        private val log = LoggerFactory.getLogger(OutboxConsumer::class.java)
+        private val log = LoggerFactory.getLogger(OrderConsumer::class.java)
         private const val RETRY_COUNT_HEADER = "retryCount"
         private const val MAX_RETRY_COUNT = 5
         private const val PUBLISH_RETRY_COUNT = 5L

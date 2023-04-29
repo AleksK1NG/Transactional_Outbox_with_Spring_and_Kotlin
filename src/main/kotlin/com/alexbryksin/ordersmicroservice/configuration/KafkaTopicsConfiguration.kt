@@ -9,13 +9,8 @@ import reactor.util.Loggers
 @ConfigurationProperties(prefix = "topics")
 class KafkaTopicsConfiguration {
 
-    var bankAccountCreated: TopicConfiguration? = null
     var retryTopic: TopicConfiguration? = null
-    var balanceDeposited: TopicConfiguration? = null
-    var balanceWithdrawn: TopicConfiguration? = null
-    var emailChanged: TopicConfiguration? = null
     var deadLetterQueue: TopicConfiguration? = null
-
 
     var orderCreated: TopicConfiguration? = null
     var orderPaid: TopicConfiguration? = null
@@ -27,10 +22,6 @@ class KafkaTopicsConfiguration {
 
 
     fun getTopics() = listOf(
-        bankAccountCreated,
-        balanceDeposited,
-        balanceWithdrawn,
-        emailChanged,
         retryTopic,
         deadLetterQueue,
         orderCreated,
