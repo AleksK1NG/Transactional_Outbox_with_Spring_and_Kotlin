@@ -11,6 +11,7 @@ import com.alexbryksin.ordersmicroservice.order.events.OrderPaidEvent.Companion.
 import com.alexbryksin.ordersmicroservice.order.events.OrderSubmittedEvent.Companion.ORDER_SUBMITTED_EVENT
 import com.alexbryksin.ordersmicroservice.order.events.ProductItemAddedEvent.Companion.PRODUCT_ITEM_ADDED_EVENT
 import com.alexbryksin.ordersmicroservice.order.events.ProductItemRemovedEvent.Companion.PRODUCT_ITEM_REMOVED_EVENT
+import com.alexbryksin.ordersmicroservice.order.exceptions.ProductItemNotFoundException
 import com.alexbryksin.ordersmicroservice.order.repository.OrderMongoRepository
 import com.alexbryksin.ordersmicroservice.order.repository.OrderOutboxRepository
 import com.alexbryksin.ordersmicroservice.order.repository.OrderRepository
@@ -80,6 +81,8 @@ class OrderServiceImpl(
 
     override suspend fun removeProductItem(orderID: UUID, productItemId: UUID): Unit = coroutineScopeWithObservation(REMOVE_PRODUCT, or) { observation ->
         txOp.executeAndAwait {
+            if (!productItemRepository.existsById(productItemId)) throw ProductItemNotFoundException(productItemId)
+
             val order = orderRepository.findOrderByID(orderID)
             productItemRepository.deleteById(productItemId)
 
@@ -188,7 +191,7 @@ class OrderServiceImpl(
             .also { observation.highCardinalityKeyValue("order", it.toString()) }
     }
 
-    private suspend fun publishOutboxEvent(event: OutboxRecord) = coroutineScopeWithObservation(PUBLISH_OUTBOX_EVENT, or) {observation ->
+    private suspend fun publishOutboxEvent(event: OutboxRecord) = coroutineScopeWithObservation(PUBLISH_OUTBOX_EVENT, or) { observation ->
         try {
             log.info("publishing outbox event >>>>>: $event")
 

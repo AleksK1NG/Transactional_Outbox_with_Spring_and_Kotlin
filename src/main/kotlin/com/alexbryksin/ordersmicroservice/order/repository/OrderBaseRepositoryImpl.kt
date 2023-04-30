@@ -1,11 +1,8 @@
 package com.alexbryksin.ordersmicroservice.order.repository
 
-import com.alexbryksin.ordersmicroservice.order.domain.Order
-import com.alexbryksin.ordersmicroservice.order.domain.OrderEntity
+import com.alexbryksin.ordersmicroservice.order.domain.*
 import com.alexbryksin.ordersmicroservice.order.domain.OrderEntity.Companion.ID
 import com.alexbryksin.ordersmicroservice.order.domain.OrderEntity.Companion.VERSION
-import com.alexbryksin.ordersmicroservice.order.domain.ProductItemEntity
-import com.alexbryksin.ordersmicroservice.order.domain.of
 import com.alexbryksin.ordersmicroservice.order.exceptions.OrderNotFoundException
 import com.alexbryksin.ordersmicroservice.utils.tracing.coroutineScopeWithObservation
 import io.micrometer.observation.ObservationRegistry
@@ -58,7 +55,7 @@ class OrderBaseRepositoryImpl(
             .toList()
             .let { orderFromList(it) }
             .also {
-                log.info("loaded order: $it")
+                log.info("getOrderWithProductItemsByID order: $it")
                 observation.highCardinalityKeyValue("order", it.toString())
             }
     }
@@ -124,8 +121,13 @@ class OrderBaseRepositoryImpl(
         paymentId = list[0].first.paymentId ?: "",
         createdAt = list[0].first.createdAt,
         updatedAt = list[0].first.updatedAt,
-        productItems = list.map { item -> item.second.toProductItem() }.toMutableList()
+        productItems = getProductItemsList(list)
     )
+
+    private fun getProductItemsList(list: List<Pair<OrderEntity, ProductItemEntity>>): MutableList<ProductItem> {
+        if (list[0].second.id == null) return mutableListOf()
+        return list.map { item -> item.second.toProductItem() }.toMutableList()
+    }
 
     companion object {
         private val log = LoggerFactory.getLogger(OrderBaseRepositoryImpl::class.java)
