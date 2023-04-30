@@ -8,8 +8,8 @@ import org.springframework.context.annotation.Configuration
 
 @OpenAPIDefinition(
     info = Info(
-        title = "Kotlin Spring Outbox Microservice",
-        description = "Kotlin Spring Outbox Microservice example",
+        title = "Kotlin Spring Microservice Outbox implementation",
+        description = "Kotlin Spring Microservice Outbox implementation example",
         version = "1.0.0",
         contact = Contact(
             name = "Alexander Bryksin",
@@ -19,5 +19,4 @@ import org.springframework.context.annotation.Configuration
     )
 )
 @Configuration
-class SwaggerConfiguration {
-}
+class SwaggerConfiguration

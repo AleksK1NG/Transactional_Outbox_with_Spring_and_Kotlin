@@ -84,6 +84,7 @@ class OrderConsumer(
                 observation.highCardinalityKeyValue("consumerRecord", consumerRecord.toString())
             } catch (ex: Exception) {
                 observation.error(ex)
+
                 if (ex is SerializationException || ex is UnknownEventTypeException) {
                     ack.acknowledge()
                     log.error("commit not serializable or unknown record: ${String(consumerRecord.value())}")
@@ -91,6 +92,7 @@ class OrderConsumer(
                 }
 
                 val retryCount = getHeader(RETRY_COUNT_HEADER, consumerRecord.headers()).toInt()
+                observation.highCardinalityKeyValue("retryCount", retryCount.toString())
 
                 if (ex is InvalidVersionException) {
                     log.info("processing retry invalid version exception >>>>>>>>>>>>>>>> ${ex.localizedMessage}")
@@ -132,11 +134,14 @@ class OrderConsumer(
             record.headers().forEach { headersMap[it.key()] = it.value() }
 
             observation.highCardinalityKeyValue("headers", record.headers().toString())
+            observation.highCardinalityKeyValue("retryCount", retryCount.toString())
             eventsPublisher.publishRetryRecord(topic, record.key(), record.value(), headersMap)
         }
     }
 
-    private suspend fun processOutboxRecord(outboxRecord: OutboxRecord) = coroutineScopeWithObservation(PROCESS_OUTBOX_RECORD, or) {
+    private suspend fun processOutboxRecord(outboxRecord: OutboxRecord) = coroutineScopeWithObservation(PROCESS_OUTBOX_RECORD, or) { observation ->
+        observation.highCardinalityKeyValue("eventType", outboxRecord.eventType ?: "")
+
         when (outboxRecord.eventType) {
             ORDER_CREATED_EVENT -> orderEventProcessor.on(
                 serializer.deserialize(

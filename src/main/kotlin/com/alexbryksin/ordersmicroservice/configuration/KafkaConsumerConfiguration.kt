@@ -16,6 +16,9 @@ import org.springframework.kafka.listener.ContainerProperties
 class KafkaConsumerConfiguration(
     @Value(value = "\${spring.kafka.bootstrap-servers:localhost:9092}")
     private val bootstrapServers: String,
+
+    @Value(value = "\${spring.kafka.consumer.group-id:order-microservice-group-id}")
+    private val groupId: String,
 ) {
     @Bean
     fun kafkaListenerContainerFactory(consumerFactory: ConsumerFactory<String, ByteArray>): ConcurrentKafkaListenerContainerFactory<String, ByteArray> {
@@ -41,7 +44,7 @@ class KafkaConsumerConfiguration(
     private fun consumerProps(): Map<String, Any> {
         return hashMapOf<String, Any>(
             ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG to bootstrapServers,
-            ConsumerConfig.GROUP_ID_CONFIG to "microservice_group_id",
+            ConsumerConfig.GROUP_ID_CONFIG to groupId,
             ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG to StringDeserializer::class.java,
             ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG to ByteArrayDeserializer::class.java,
             ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG to "false"
