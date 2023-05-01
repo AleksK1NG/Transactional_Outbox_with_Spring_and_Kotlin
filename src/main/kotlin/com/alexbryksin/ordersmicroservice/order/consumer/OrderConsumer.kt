@@ -24,6 +24,7 @@ import kotlinx.coroutines.reactor.mono
 import kotlinx.coroutines.runBlocking
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.slf4j.LoggerFactory
+import org.springframework.data.mapping.model.MappingInstantiationException
 import org.springframework.kafka.annotation.KafkaListener
 import org.springframework.kafka.support.Acknowledgment
 import org.springframework.stereotype.Component
@@ -67,7 +68,7 @@ class OrderConsumer(
                     return@coroutineScopeWithObservation
                 }
 
-                log.error("exception while processing record: ${ex.localizedMessage}")
+                log.error("exception while processing record", ex)
                 publishRetryTopic(kafkaTopicsConfiguration.retryTopic?.name!!, consumerRecord, 1)
             }
         }
@@ -88,6 +89,12 @@ class OrderConsumer(
                 if (ex is SerializationException || ex is UnknownEventTypeException) {
                     ack.acknowledge()
                     log.error("commit not serializable or unknown record: ${String(consumerRecord.value())}")
+                    return@coroutineScopeWithObservation
+                }
+
+                if (ex is MappingInstantiationException) {
+                    log.error("MappingInstantiationException", ex)
+                    ack.acknowledge()
                     return@coroutineScopeWithObservation
                 }
 

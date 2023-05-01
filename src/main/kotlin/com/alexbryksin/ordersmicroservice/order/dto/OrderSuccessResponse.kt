@@ -24,7 +24,7 @@ fun OrderSuccessResponse.Companion.of(order: Order): OrderSuccessResponse = Orde
     status = order.status,
     version = order.version,
     paymentId = order.paymentId,
-    productItems = order.productItems.map { ProductItemSuccessResponse.of(it) }.toList(),
+    productItems = order.productsList().map { ProductItemSuccessResponse.of(it) }.toList(),
     createdAt = order.createdAt.toString(),
     updatedAt = order.updatedAt.toString(),
 )

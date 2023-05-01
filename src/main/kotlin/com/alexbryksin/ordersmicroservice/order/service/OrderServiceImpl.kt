@@ -45,7 +45,7 @@ class OrderServiceImpl(
     override suspend fun createOrder(order: Order): Order = coroutineScopeWithObservation(CREATE, or) { observation ->
         txOp.executeAndAwait {
             orderRepository.insert(order).let {
-                val productItemsEntityList = ProductItemEntity.listOf(order.productItems, UUID.fromString(it.id))
+                val productItemsEntityList = ProductItemEntity.listOf(order.productsList(), UUID.fromString(it.id))
                 val insertedItems = productItemRepository.insertAll(productItemsEntityList).toList()
 
                 it.addProductItems(insertedItems.map { item -> item.toProductItem() })
@@ -65,9 +65,14 @@ class OrderServiceImpl(
             val order = orderRepository.findOrderByID(UUID.fromString(productItem.orderId))
             order.incVersion()
 
-            val productItemEntity = productItemRepository.insert(ProductItemEntity.of(productItem))
+            val updatedProductItem = productItemRepository.upsert(productItem)
 
-            val savedRecord = outboxRepository.save(outboxEventSerializer.productItemAddedEventOf(order, productItemEntity))
+            val savedRecord = outboxRepository.save(
+                outboxEventSerializer.productItemAddedEventOf(
+                    order,
+                    ProductItemEntity.of(productItem.copy(version = updatedProductItem.version))
+                )
+            )
 
             orderRepository.updateVersion(UUID.fromString(order.id), order.version)
                 .also { result -> log.info("addOrderItem result: $result, version: ${order.version}") }
@@ -136,7 +141,7 @@ class OrderServiceImpl(
             order.submit()
 
             val updatedOrder = orderRepository.update(order)
-            updatedOrder.addProductItems(order.productItems)
+            updatedOrder.addProductItems(order.productsList())
 
             Pair(updatedOrder, outboxRepository.save(outboxEventSerializer.orderSubmittedEventOf(updatedOrder)))
         }.run {

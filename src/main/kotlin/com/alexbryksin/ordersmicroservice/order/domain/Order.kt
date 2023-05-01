@@ -10,26 +10,34 @@ class Order(
     var address: String = "",
     var status: OrderStatus = OrderStatus.NEW,
     var version: Long = 0,
-    val productItems: MutableList<ProductItem> = arrayListOf(),
+    var productItems: MutableMap<String, ProductItem> = linkedMapOf(),
     var paymentId: String = "",
     var createdAt: LocalDateTime? = null,
     var updatedAt: LocalDateTime? = null
 ) {
 
-    fun addProductItem(productItemEntity: ProductItem): Order {
-        productItems.add(productItemEntity)
+    fun addProductItem(productItem: ProductItem): Order {
+        if (productItems.containsKey(productItem.id)) {
+            val item = productItems[productItem.id]!!
+            productItems[productItem.id] = item.copy(quantity = (item.quantity + productItem.quantity), version = productItem.version)
+            return this
+        }
+
+        productItems[productItem.id] = productItem
         return this
     }
 
     fun addProductItems(items: List<ProductItem>): Order {
-        productItems.addAll(items)
+        items.forEach { addProductItem(it) }
         return this
     }
 
     fun removeProductItem(id: String): Order {
-        productItems.removeIf { it.id == id }
+        productItems.remove(id)
         return this
     }
+
+    fun productsList() = productItems.toList().map { it.second }
 
     fun pay(paymentId: String) {
         if (productItems.isEmpty()) throw OrderHasNotProductItemsException(id)

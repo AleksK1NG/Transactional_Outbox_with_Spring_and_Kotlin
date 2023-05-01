@@ -36,6 +36,10 @@ CREATE TABLE IF NOT EXISTS microservices.product_items
 
 CREATE INDEX IF NOT EXISTS product_items_order_id_idx ON microservices.product_items (order_id);
 
+ALTER TABLE microservices.product_items
+    ADD CONSTRAINT product_items_id_order_id_unique UNIQUE (id, order_id);
+
+
 
 CREATE TABLE IF NOT EXISTS microservices.outbox_table
 (

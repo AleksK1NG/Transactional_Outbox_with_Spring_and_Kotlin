@@ -17,7 +17,7 @@ data class CreateOrderDTO(
         email = this.email,
         address = this.address,
         productItems = this.productItems.map { ProductItem(title = it.title, price = it.price, quantity = it.quantity, id = it.id.toString()) }
-            .toMutableList()
+            .associateBy { it.id }.toMutableMap()
     )
 }
 
