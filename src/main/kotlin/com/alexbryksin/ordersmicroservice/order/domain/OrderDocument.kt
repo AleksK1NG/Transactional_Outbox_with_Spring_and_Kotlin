@@ -28,7 +28,7 @@ data class OrderDocument(
         status = this.status,
         version = this.version,
         paymentId = this.paymentId,
-        productItems = this.productItems,
+        productItems = this.productItems.associateBy { it.id }.toMutableMap(),
         createdAt = this.createdAt,
         updatedAt = this.updatedAt
     )
@@ -54,7 +54,7 @@ fun OrderDocument.Companion.of(order: Order): OrderDocument = OrderDocument(
     status = order.status,
     version = order.version,
     paymentId = order.paymentId,
-    productItems = order.productItems,
+    productItems = order.productsList().toMutableList(),
     createdAt = order.createdAt,
     updatedAt = order.updatedAt
 )

@@ -109,7 +109,7 @@ class OrderBaseRepositoryImpl(
         paymentId = list[0].first.paymentId ?: "",
         createdAt = list[0].first.createdAt,
         updatedAt = list[0].first.updatedAt,
-        productItems = list.map { item -> item.second.toProductItem() }.toMutableList()
+        productItems = list.map { item -> item.second.toProductItem() }.associateBy { it.id }.toMutableMap()
     )
 
     private fun orderFromList(list: List<Pair<OrderEntity, ProductItemEntity>>): Order = Order(
@@ -121,7 +121,7 @@ class OrderBaseRepositoryImpl(
         paymentId = list[0].first.paymentId ?: "",
         createdAt = list[0].first.createdAt,
         updatedAt = list[0].first.updatedAt,
-        productItems = getProductItemsList(list)
+        productItems = getProductItemsList(list).associateBy { it.id }.toMutableMap()
     )
 
     private fun getProductItemsList(list: List<Pair<OrderEntity, ProductItemEntity>>): MutableList<ProductItem> {
