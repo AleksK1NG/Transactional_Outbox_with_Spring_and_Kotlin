@@ -14,7 +14,6 @@ import com.alexbryksin.ordersmicroservice.order.events.OrderSubmittedEvent.Compa
 import com.alexbryksin.ordersmicroservice.order.events.ProductItemAddedEvent.Companion.PRODUCT_ITEM_ADDED_EVENT
 import com.alexbryksin.ordersmicroservice.order.events.ProductItemRemovedEvent.Companion.PRODUCT_ITEM_REMOVED_EVENT
 import com.alexbryksin.ordersmicroservice.order.exceptions.InvalidVersionException
-import com.alexbryksin.ordersmicroservice.utils.kafkaUtils.getHeader
 import com.alexbryksin.ordersmicroservice.utils.serializer.SerializationException
 import com.alexbryksin.ordersmicroservice.utils.serializer.Serializer
 import com.alexbryksin.ordersmicroservice.utils.tracing.coroutineScopeWithObservation
@@ -24,7 +23,6 @@ import kotlinx.coroutines.reactor.mono
 import kotlinx.coroutines.runBlocking
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.slf4j.LoggerFactory
-import org.springframework.data.mapping.model.MappingInstantiationException
 import org.springframework.kafka.annotation.KafkaListener
 import org.springframework.kafka.support.Acknowledgment
 import org.springframework.stereotype.Component
@@ -58,10 +56,12 @@ class OrderConsumer(
             try {
                 processOutboxRecord(serializer.deserialize(consumerRecord.value(), OutboxRecord::class.java))
                 ack.acknowledge()
+
                 log.info("committed record topic: ${consumerRecord.topic()} offset: ${consumerRecord.offset()} partition: ${consumerRecord.partition()}")
                 observation.highCardinalityKeyValue("consumerRecord", consumerRecord.toString())
             } catch (ex: Exception) {
                 observation.error(ex)
+
                 if (ex is SerializationException || ex is UnknownEventTypeException) {
                     log.error("commit not serializable or unknown record: ${String(consumerRecord.value())}")
                     ack.acknowledge()
@@ -81,6 +81,7 @@ class OrderConsumer(
             try {
                 processOutboxRecord(serializer.deserialize(consumerRecord.value(), OutboxRecord::class.java))
                 ack.acknowledge()
+
                 log.info("committed retry record >>>>>>>>>>>>>> topic: ${consumerRecord.topic()} offset: ${consumerRecord.offset()} partition: ${consumerRecord.partition()}")
                 observation.highCardinalityKeyValue("consumerRecord", consumerRecord.toString())
             } catch (ex: Exception) {
@@ -92,30 +93,29 @@ class OrderConsumer(
                     return@coroutineScopeWithObservation
                 }
 
-                if (ex is MappingInstantiationException) {
-                    log.error("MappingInstantiationException", ex)
-                    ack.acknowledge()
-                    return@coroutineScopeWithObservation
+                val count = consumerRecord.headers().lastHeader(RETRY_COUNT_HEADER)
+                if (count != null) {
+                    log.info("FOUND HEADER: >>>>>>>> ${count.key()}: ${String(count.value())}")
                 }
 
-                val retryCount = getHeader(RETRY_COUNT_HEADER, consumerRecord.headers()).toInt()
-                observation.highCardinalityKeyValue("retryCount", retryCount.toString())
+                val currentRetry = String(count?.value() ?: byteArrayOf()).toInt()
+                observation.highCardinalityKeyValue("currentRetry", currentRetry.toString())
 
                 if (ex is InvalidVersionException) {
                     log.info("processing retry invalid version exception >>>>>>>>>>>>>>>> ${ex.localizedMessage}")
-                    publishRetryTopic(kafkaTopicsConfiguration.deadLetterQueue?.name!!, consumerRecord, retryCount)
+                    publishRetryTopic(kafkaTopicsConfiguration.deadLetterQueue?.name!!, consumerRecord, currentRetry)
                     return@coroutineScopeWithObservation
                 }
 
-                if (retryCount > MAX_RETRY_COUNT) {
+                if (currentRetry > MAX_RETRY_COUNT) {
                     log.error("retry count exceed, send record to dlq: ${consumerRecord.topic()}")
-                    publishRetryTopic(kafkaTopicsConfiguration.deadLetterQueue?.name!!, consumerRecord, retryCount + 1)
+                    publishRetryTopic(kafkaTopicsConfiguration.deadLetterQueue?.name!!, consumerRecord, currentRetry + 1)
                     ack.acknowledge()
                     return@coroutineScopeWithObservation
                 }
 
                 log.error("exception while processing record: ${ex.localizedMessage}")
-                publishRetryTopic(kafkaTopicsConfiguration.retryTopic?.name!!, consumerRecord, retryCount + 1)
+                publishRetryTopic(kafkaTopicsConfiguration.retryTopic?.name!!, consumerRecord, currentRetry + 1)
             }
         }
     }
@@ -125,6 +125,9 @@ class OrderConsumer(
         coroutineScopeWithObservation(PUBLISH_RETRY_TOPIC, or) { observation ->
             observation.highCardinalityKeyValue("record", record.toString())
             observation.highCardinalityKeyValue("retryCount", retryCount.toString())
+
+            record.headers().remove(RETRY_COUNT_HEADER)
+            record.headers().add(RETRY_COUNT_HEADER, retryCount.toString().toByteArray())
 
             mono { publishRetryRecord(topic, record, retryCount) }
                 .retryWhen(Retry.backoff(PUBLISH_RETRY_COUNT, Duration.ofMillis(PUBLISH_RETRY_BACKOFF_DURATION_MILLIS))
@@ -137,17 +140,16 @@ class OrderConsumer(
     private suspend fun publishRetryRecord(topic: String, record: ConsumerRecord<String, ByteArray>, retryCount: Int) {
         coroutineScopeWithObservation(PUBLISH_RETRY_RECORD, or) { observation ->
             log.info("publishing retry record: ${String(record.value())}, retryCount: $retryCount")
-            val headersMap = mutableMapOf(RETRY_COUNT_HEADER to retryCount.toString().toByteArray())
-            record.headers().forEach { headersMap[it.key()] = it.value() }
-
             observation.highCardinalityKeyValue("headers", record.headers().toString())
             observation.highCardinalityKeyValue("retryCount", retryCount.toString())
-            eventsPublisher.publishRetryRecord(topic, record.key(), record.value(), headersMap)
+            eventsPublisher.publishRetryRecord(topic, record.key(), record)
         }
     }
 
     private suspend fun processOutboxRecord(outboxRecord: OutboxRecord) = coroutineScopeWithObservation(PROCESS_OUTBOX_RECORD, or) { observation ->
         observation.highCardinalityKeyValue("eventType", outboxRecord.eventType ?: "")
+
+        if (outboxRecord.eventType == PRODUCT_ITEM_REMOVED_EVENT) throw RuntimeException("retry exception")
 
         when (outboxRecord.eventType) {
             ORDER_CREATED_EVENT -> orderEventProcessor.on(
