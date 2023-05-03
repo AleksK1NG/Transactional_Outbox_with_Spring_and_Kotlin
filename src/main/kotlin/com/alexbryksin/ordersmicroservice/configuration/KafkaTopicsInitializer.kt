@@ -17,7 +17,7 @@ class KafkaTopicsInitializer(
         log.info("topics created or modified")
     }
 
-    private fun createOrModifyTopic(topicConfiguration: TopicConfiguration): Unit {
+    private fun createOrModifyTopic(topicConfiguration: TopicConfiguration) {
         return try {
             val topic = NewTopic(topicConfiguration.name, topicConfiguration.partitions, topicConfiguration.replication.toShort())
             kafkaAdmin.createOrModifyTopics(topic).also { log.info("(KafkaTopicsInitializer) created or modified topic: $topic") }

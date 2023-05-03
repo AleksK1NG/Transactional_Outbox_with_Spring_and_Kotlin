@@ -54,11 +54,12 @@ class OrderConsumer(
     fun process(ack: Acknowledgment, consumerRecord: ConsumerRecord<String, ByteArray>) = runBlocking {
         coroutineScopeWithObservation(PROCESS, or) { observation ->
             try {
+                observation.highCardinalityKeyValue("consumerRecord", consumerRecord.toString())
+
                 processOutboxRecord(serializer.deserialize(consumerRecord.value(), OutboxRecord::class.java))
                 ack.acknowledge()
 
-                log.info("committed record topic: ${consumerRecord.topic()} offset: ${consumerRecord.offset()} partition: ${consumerRecord.partition()}")
-                observation.highCardinalityKeyValue("consumerRecord", consumerRecord.toString())
+                log.info("committed record topic: ${consumerRecord.topic()}, key: ${consumerRecord.key()}, offset: ${consumerRecord.offset()} partition: ${consumerRecord.partition()}")
             } catch (ex: Exception) {
                 observation.error(ex)
 
@@ -68,8 +69,8 @@ class OrderConsumer(
                     return@coroutineScopeWithObservation
                 }
 
-                log.error("exception while processing record", ex)
-                publishRetryTopic(kafkaTopicsConfiguration.retryTopic?.name!!, consumerRecord, 1)
+                log.error("exception while processing record: $consumerRecord", ex)
+                publishRetryTopic(kafkaTopicsConfiguration.retryTopic.name, consumerRecord, 1)
             }
         }
     }
@@ -79,11 +80,12 @@ class OrderConsumer(
     fun processRetry(ack: Acknowledgment, consumerRecord: ConsumerRecord<String, ByteArray>): Unit = runBlocking {
         coroutineScopeWithObservation(PROCESS_RETRY, or) { observation ->
             try {
+                observation.highCardinalityKeyValue("consumerRecord", consumerRecord.toString())
+
                 processOutboxRecord(serializer.deserialize(consumerRecord.value(), OutboxRecord::class.java))
                 ack.acknowledge()
 
-                log.info("committed retry record >>>>>>>>>>>>>> topic: ${consumerRecord.topic()} offset: ${consumerRecord.offset()} partition: ${consumerRecord.partition()}")
-                observation.highCardinalityKeyValue("consumerRecord", consumerRecord.toString())
+                log.info("committed retry record topic: ${consumerRecord.topic()}, key: ${consumerRecord.key()}, offset: ${consumerRecord.offset()} partition: ${consumerRecord.partition()}")
             } catch (ex: Exception) {
                 observation.error(ex)
 
@@ -97,7 +99,7 @@ class OrderConsumer(
                 observation.highCardinalityKeyValue("currentRetry", currentRetry.toString())
 
                 if (ex is InvalidVersionException) {
-                    log.info("processing retry invalid version exception >>>>>>>>>>>>>>>> ${ex.localizedMessage}")
+                    log.info("processing retry invalid version exception ${ex.localizedMessage}")
                     publishRetryTopic(kafkaTopicsConfiguration.deadLetterQueue.name, consumerRecord, currentRetry)
                     return@coroutineScopeWithObservation
                 }
@@ -116,10 +118,13 @@ class OrderConsumer(
     }
 
 
-    private suspend fun publishRetryTopic(topic: String, record: ConsumerRecord<String, ByteArray>, retryCount: Int) {
+    private suspend fun publishRetryTopic(topic: String, record: ConsumerRecord<String, ByteArray>, retryCount: Int) =
         coroutineScopeWithObservation(PUBLISH_RETRY_TOPIC, or) { observation ->
-            observation.highCardinalityKeyValue("record", record.toString())
-            observation.highCardinalityKeyValue("retryCount", retryCount.toString())
+            observation.highCardinalityKeyValue("topic", record.topic())
+                .highCardinalityKeyValue("key", record.key())
+                .highCardinalityKeyValue("offset", record.offset().toString())
+                .highCardinalityKeyValue("value", String(record.value()))
+                .highCardinalityKeyValue("retryCount", retryCount.toString())
 
             record.headers().remove(RETRY_COUNT_HEADER)
             record.headers().add(RETRY_COUNT_HEADER, retryCount.toString().toByteArray())
@@ -129,22 +134,20 @@ class OrderConsumer(
                     .filter { it is SerializationException })
                 .awaitSingle()
         }
-    }
 
 
-    private suspend fun publishRetryRecord(topic: String, record: ConsumerRecord<String, ByteArray>, retryCount: Int) {
+    private suspend fun publishRetryRecord(topic: String, record: ConsumerRecord<String, ByteArray>, retryCount: Int) =
         coroutineScopeWithObservation(PUBLISH_RETRY_RECORD, or) { observation ->
             log.info("publishing retry record: ${String(record.value())}, retryCount: $retryCount")
             observation.highCardinalityKeyValue("headers", record.headers().toString())
             observation.highCardinalityKeyValue("retryCount", retryCount.toString())
+
             eventsPublisher.publishRetryRecord(topic, record.key(), record)
         }
-    }
+
 
     private suspend fun processOutboxRecord(outboxRecord: OutboxRecord) = coroutineScopeWithObservation(PROCESS_OUTBOX_RECORD, or) { observation ->
-        observation.highCardinalityKeyValue("eventType", outboxRecord.eventType ?: "")
-
-        if (outboxRecord.eventType == PRODUCT_ITEM_REMOVED_EVENT) throw RuntimeException("retry exception")
+        observation.highCardinalityKeyValue("outboxRecord", outboxRecord.toString())
 
         when (outboxRecord.eventType) {
             ORDER_CREATED_EVENT -> orderEventProcessor.on(
