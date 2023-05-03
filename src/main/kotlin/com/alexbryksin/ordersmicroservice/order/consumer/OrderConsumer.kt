@@ -93,29 +93,24 @@ class OrderConsumer(
                     return@coroutineScopeWithObservation
                 }
 
-                val count = consumerRecord.headers().lastHeader(RETRY_COUNT_HEADER)
-                if (count != null) {
-                    log.info("FOUND HEADER: >>>>>>>> ${count.key()}: ${String(count.value())}")
-                }
-
-                val currentRetry = String(count?.value() ?: byteArrayOf()).toInt()
+                val currentRetry = String(consumerRecord.headers().lastHeader(RETRY_COUNT_HEADER).value()).toInt()
                 observation.highCardinalityKeyValue("currentRetry", currentRetry.toString())
 
                 if (ex is InvalidVersionException) {
                     log.info("processing retry invalid version exception >>>>>>>>>>>>>>>> ${ex.localizedMessage}")
-                    publishRetryTopic(kafkaTopicsConfiguration.deadLetterQueue?.name!!, consumerRecord, currentRetry)
+                    publishRetryTopic(kafkaTopicsConfiguration.deadLetterQueue.name, consumerRecord, currentRetry)
                     return@coroutineScopeWithObservation
                 }
 
                 if (currentRetry > MAX_RETRY_COUNT) {
                     log.error("retry count exceed, send record to dlq: ${consumerRecord.topic()}")
-                    publishRetryTopic(kafkaTopicsConfiguration.deadLetterQueue?.name!!, consumerRecord, currentRetry + 1)
+                    publishRetryTopic(kafkaTopicsConfiguration.deadLetterQueue.name, consumerRecord, currentRetry + 1)
                     ack.acknowledge()
                     return@coroutineScopeWithObservation
                 }
 
                 log.error("exception while processing record: ${ex.localizedMessage}")
-                publishRetryTopic(kafkaTopicsConfiguration.retryTopic?.name!!, consumerRecord, currentRetry + 1)
+                publishRetryTopic(kafkaTopicsConfiguration.retryTopic.name, consumerRecord, currentRetry + 1)
             }
         }
     }

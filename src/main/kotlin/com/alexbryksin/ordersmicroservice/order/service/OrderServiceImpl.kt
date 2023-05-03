@@ -214,13 +214,13 @@ class OrderServiceImpl(
 
 
     private fun getTopicName(eventType: String?) = when (eventType) {
-        ORDER_CREATED_EVENT -> kafkaTopicsConfiguration.orderCreated?.name
-        PRODUCT_ITEM_ADDED_EVENT -> kafkaTopicsConfiguration.productAdded?.name
-        PRODUCT_ITEM_REMOVED_EVENT -> kafkaTopicsConfiguration.productRemoved?.name
-        ORDER_CANCELLED_EVENT -> kafkaTopicsConfiguration.orderCancelled?.name
-        ORDER_PAID_EVENT -> kafkaTopicsConfiguration.orderPaid?.name
-        ORDER_SUBMITTED_EVENT -> kafkaTopicsConfiguration.orderSubmitted?.name
-        ORDER_COMPLETED_EVENT -> kafkaTopicsConfiguration.orderCompleted?.name
+        ORDER_CREATED_EVENT -> kafkaTopicsConfiguration.orderCreated.name
+        PRODUCT_ITEM_ADDED_EVENT -> kafkaTopicsConfiguration.productAdded.name
+        PRODUCT_ITEM_REMOVED_EVENT -> kafkaTopicsConfiguration.productRemoved.name
+        ORDER_CANCELLED_EVENT -> kafkaTopicsConfiguration.orderCancelled.name
+        ORDER_PAID_EVENT -> kafkaTopicsConfiguration.orderPaid.name
+        ORDER_SUBMITTED_EVENT -> kafkaTopicsConfiguration.orderSubmitted.name
+        ORDER_COMPLETED_EVENT -> kafkaTopicsConfiguration.orderCompleted.name
         else -> throw UnknownEventTypeException(eventType)
     }
 
