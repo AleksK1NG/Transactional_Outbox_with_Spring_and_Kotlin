@@ -9,16 +9,16 @@ import reactor.util.Loggers
 @ConfigurationProperties(prefix = "topics")
 class KafkaTopicsConfiguration {
 
-    var retryTopic: TopicConfiguration? = null
-    var deadLetterQueue: TopicConfiguration? = null
+    var retryTopic: TopicConfiguration = TopicConfiguration()
+    var deadLetterQueue: TopicConfiguration = TopicConfiguration()
 
-    var orderCreated: TopicConfiguration? = null
-    var orderPaid: TopicConfiguration? = null
-    var orderCancelled: TopicConfiguration? = null
-    var orderSubmitted: TopicConfiguration? = null
-    var orderCompleted: TopicConfiguration? = null
-    var productAdded: TopicConfiguration? = null
-    var productRemoved: TopicConfiguration? = null
+    var orderCreated: TopicConfiguration = TopicConfiguration()
+    var orderPaid: TopicConfiguration = TopicConfiguration()
+    var orderCancelled: TopicConfiguration = TopicConfiguration()
+    var orderSubmitted: TopicConfiguration = TopicConfiguration()
+    var orderCompleted: TopicConfiguration = TopicConfiguration()
+    var productAdded: TopicConfiguration = TopicConfiguration()
+    var productRemoved: TopicConfiguration = TopicConfiguration()
 
 
     fun getTopics() = listOf(

@@ -1,3 +1,3 @@
 package com.alexbryksin.ordersmicroservice.configuration
 
-data class TopicConfiguration(val name: String = "", val partitions: Int = 0, val replication: Int = 0)
+data class TopicConfiguration(var name: String = "", var partitions: Int = 1, var replication: Int = 1)
