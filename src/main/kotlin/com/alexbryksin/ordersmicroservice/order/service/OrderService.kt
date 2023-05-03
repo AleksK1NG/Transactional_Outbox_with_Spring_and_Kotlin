@@ -4,7 +4,6 @@ import com.alexbryksin.ordersmicroservice.order.domain.Order
 import com.alexbryksin.ordersmicroservice.order.domain.ProductItem
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
-import reactor.core.publisher.Mono
 import java.util.*
 
 interface OrderService {
@@ -19,7 +18,6 @@ interface OrderService {
     suspend fun complete(id: UUID): Order
 
     suspend fun getOrderWithProductsByID(id: UUID): Order
-    fun getOrderWithProductItemsByIDMono(id: UUID): Mono<Order>
     suspend fun getAllOrders(pageable: Pageable): Page<Order>
 
     suspend fun deleteOutboxRecordsWithLock()

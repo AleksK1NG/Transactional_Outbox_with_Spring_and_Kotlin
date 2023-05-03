@@ -44,6 +44,7 @@ schedulers:
   outbox:
     enable: false
     initialDelayMillis: 3000
+    fixedRate: 1000
 
 management:
   tracing:

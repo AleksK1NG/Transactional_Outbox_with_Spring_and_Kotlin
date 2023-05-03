@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component
 @ConditionalOnProperty(prefix = "schedulers", value = ["outbox.enable"], havingValue = "true")
 class OutboxScheduler(private val orderService: OrderService, private val or: ObservationRegistry) {
 
-    @Scheduled(initialDelay = 3000, fixedRate = 1000)
+    @Scheduled(initialDelayString = "\${schedulers.outbox.initialDelayMillis}", fixedRateString = "\${schedulers.outbox.fixedRate}")
     fun publishAndDeleteOutboxRecords() = runBlocking {
         coroutineScopeWithObservation(PUBLISH_AND_DELETE_OUTBOX_RECORDS, or) {
             log.debug("starting scheduled outbox table publishing")

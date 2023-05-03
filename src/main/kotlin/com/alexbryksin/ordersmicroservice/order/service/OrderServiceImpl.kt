@@ -25,7 +25,6 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.reactive.TransactionalOperator
 import org.springframework.transaction.reactive.executeAndAwait
-import reactor.core.publisher.Mono
 import java.util.*
 
 
@@ -55,6 +54,7 @@ class OrderServiceImpl(
         }.run {
             observation.highCardinalityKeyValue("order", first.toString())
             observation.highCardinalityKeyValue("outboxEvent", second.toString())
+
             publishOutboxEvent(second)
             first
         }
@@ -115,6 +115,7 @@ class OrderServiceImpl(
         }.run {
             observation.highCardinalityKeyValue("order", first.toString())
             observation.highCardinalityKeyValue("outboxEvent", second.toString())
+
             publishOutboxEvent(second)
             first
         }
@@ -130,6 +131,7 @@ class OrderServiceImpl(
         }.run {
             observation.highCardinalityKeyValue("order", first.toString())
             observation.highCardinalityKeyValue("outboxEvent", second.toString())
+
             publishOutboxEvent(second)
             first
         }
@@ -147,6 +149,7 @@ class OrderServiceImpl(
         }.run {
             observation.highCardinalityKeyValue("order", first.toString())
             observation.highCardinalityKeyValue("outboxEvent", second.toString())
+
             publishOutboxEvent(second)
             first
         }
@@ -163,6 +166,7 @@ class OrderServiceImpl(
         }.run {
             observation.highCardinalityKeyValue("order", first.toString())
             observation.highCardinalityKeyValue("outboxEvent", second.toString())
+
             publishOutboxEvent(second)
             first
         }
@@ -171,11 +175,6 @@ class OrderServiceImpl(
     @Transactional(readOnly = true)
     override suspend fun getOrderWithProductsByID(id: UUID): Order = coroutineScopeWithObservation(GET_ORDER_WITH_PRODUCTS_BY_ID, or) { observation ->
         orderRepository.getOrderWithProductItemsByID(id).also { observation.highCardinalityKeyValue("order", it.toString()) }
-    }
-
-    @Transactional(readOnly = true)
-    override fun getOrderWithProductItemsByIDMono(id: UUID): Mono<Order> {
-        return orderRepository.getOrderWithProductItemsByIDMono(id)
     }
 
     override suspend fun getAllOrders(pageable: Pageable): Page<Order> = coroutineScopeWithObservation(GET_ALL_ORDERS, or) { observation ->
@@ -189,7 +188,6 @@ class OrderServiceImpl(
         }
     }
 
-
     override suspend fun getOrderByID(id: UUID): Order = coroutineScopeWithObservation(GET_ORDER_BY_ID, or) { observation ->
         orderMongoRepository.getByID(id.toString())
             .also { log.info("getOrderByID: $it") }
@@ -198,13 +196,13 @@ class OrderServiceImpl(
 
     private suspend fun publishOutboxEvent(event: OutboxRecord) = coroutineScopeWithObservation(PUBLISH_OUTBOX_EVENT, or) { observation ->
         try {
-            log.info("publishing outbox event >>>>>: $event")
+            log.info("publishing outbox event: $event")
 
             outboxRepository.deleteOutboxRecordByID(event.eventId!!) {
                 eventsPublisher.publish(getTopicName(event.eventType), event.aggregateId.toString(), event)
             }
 
-            log.info("outbox event published and deleted >>>>>>: $event")
+            log.info("outbox event published and deleted: $event")
             observation.highCardinalityKeyValue("event", event.toString())
         } catch (ex: Exception) {
             log.error("exception while publishing outbox event: ${ex.localizedMessage}")
