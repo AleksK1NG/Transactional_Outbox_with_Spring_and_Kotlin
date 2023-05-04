@@ -46,7 +46,7 @@ schedulers:
     enable: false
     initialDelayMillis: 3000
     fixedRate: 1000
-#MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://localhost:9411/api/v2/spans
+
 management:
   tracing:
     sampling:
