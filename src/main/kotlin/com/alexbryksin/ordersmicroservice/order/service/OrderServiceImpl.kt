@@ -70,7 +70,7 @@ class OrderServiceImpl(
             val savedRecord = outboxRepository.save(
                 outboxEventSerializer.productItemAddedEventOf(
                     order,
-                    ProductItemEntity.of(productItem.copy(version = updatedProductItem.version))
+                    productItem.copy(version = updatedProductItem.version).toEntity()
                 )
             )
 
@@ -162,6 +162,7 @@ class OrderServiceImpl(
 
             val updatedOrder = orderRepository.update(order)
             log.info("order submitted: ${updatedOrder.status} for id: $id")
+
             Pair(updatedOrder, outboxRepository.save(outboxEventSerializer.orderCompletedEventOf(updatedOrder)))
         }.run {
             observation.highCardinalityKeyValue("order", first.toString())

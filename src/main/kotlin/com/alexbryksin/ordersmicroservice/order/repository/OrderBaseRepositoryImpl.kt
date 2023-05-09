@@ -16,7 +16,6 @@ import org.springframework.data.relational.core.query.Query
 import org.springframework.r2dbc.core.DatabaseClient
 import org.springframework.r2dbc.core.flow
 import org.springframework.stereotype.Repository
-import reactor.core.publisher.Mono
 import java.util.*
 
 
@@ -60,22 +59,6 @@ class OrderBaseRepositoryImpl(
             }
     }
 
-    override fun getOrderWithProductItemsByIDMono(id: UUID): Mono<Order> {
-        return dbClient.sql(
-            """SELECT o.id, o.email, o.status, o.address, o.version, o.payment_id, o.created_at, o.updated_at, 
-            |pi.id as productId, pi.price, pi.title, pi.quantity, pi.order_id
-            |FROM microservices.orders o 
-            |LEFT JOIN microservices.product_items pi on o.id = pi.order_id 
-            |WHERE o.id = :id""".trimMargin()
-        )
-            .bind(ID, id)
-            .map { row, _ -> Pair(OrderEntity.of(row), ProductItemEntity.of(row)) }
-            .all()
-            .collectList()
-            .map { orderFromMutableList(it) }
-            .doOnNext { log.info("loaded order: $it") }
-    }
-
     override suspend fun findOrderByID(id: UUID): Order = coroutineScopeWithObservation(FIND_ORDER_BY_ID, or) { observation ->
         val query = Query.query(Criteria.where(ID).`is`(id))
         entityTemplate.selectOne(query, OrderEntity::class.java).awaitSingleOrNull()?.toOrder()
@@ -84,7 +67,7 @@ class OrderBaseRepositoryImpl(
     }
 
     override suspend fun insert(order: Order): Order = coroutineScopeWithObservation(INSERT, or) { observation ->
-        entityTemplate.insert(OrderEntity.of(order)).awaitSingle().toOrder()
+        entityTemplate.insert(order.toEntity()).awaitSingle().toOrder()
             .also {
                 log.info("inserted order: $it")
                 observation.highCardinalityKeyValue("order", it.toString())
@@ -92,25 +75,12 @@ class OrderBaseRepositoryImpl(
     }
 
     override suspend fun update(order: Order): Order = coroutineScopeWithObservation(UPDATE, or) { observation ->
-        entityTemplate.update(OrderEntity.of(order)).awaitSingle().toOrder()
+        entityTemplate.update(order.toEntity()).awaitSingle().toOrder()
             .also {
                 log.info("updated order: $it")
                 observation.highCardinalityKeyValue("order", it.toString())
             }
     }
-
-
-    private fun orderFromMutableList(list: MutableList<Pair<OrderEntity, ProductItemEntity>>): Order = Order(
-        id = list[0].first.id.toString(),
-        email = list[0].first.email ?: "",
-        status = list[0].first.status,
-        address = list[0].first.address ?: "",
-        version = list[0].first.version,
-        paymentId = list[0].first.paymentId ?: "",
-        createdAt = list[0].first.createdAt,
-        updatedAt = list[0].first.updatedAt,
-        productItems = list.map { item -> item.second.toProductItem() }.associateBy { it.id }.toMutableMap()
-    )
 
     private fun orderFromList(list: List<Pair<OrderEntity, ProductItemEntity>>): Order = Order(
         id = list[0].first.id.toString(),

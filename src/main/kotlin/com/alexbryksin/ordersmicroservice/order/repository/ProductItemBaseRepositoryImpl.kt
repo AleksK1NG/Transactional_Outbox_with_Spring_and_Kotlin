@@ -23,12 +23,11 @@ class ProductItemBaseRepositoryImpl(
     private val or: ObservationRegistry,
 ) : ProductItemBaseRepository {
 
-    override suspend fun upsert(productItem: ProductItem): ProductItem = coroutineScopeWithObservation("update", or) { observation ->
+    override suspend fun upsert(productItem: ProductItem): ProductItem = coroutineScopeWithObservation(UPDATE, or) { observation ->
         val query = Query.query(
             Criteria.where("id").`is`(UUID.fromString(productItem.id))
                 .and("order_id").`is`(UUID.fromString(productItem.orderId))
         )
-
 
         val product = entityTemplate.selectOne(query, ProductItemEntity::class.java).awaitSingleOrNull()
         if (product != null) {
@@ -37,14 +36,12 @@ class ProductItemBaseRepositoryImpl(
                 .set("version", product.version + 1)
                 .set("updated_at", LocalDateTime.now())
 
-
             val updatedProduct = product.copy(quantity = (productItem.quantity + product.quantity), version = product.version + 1)
             val updateResult = entityTemplate.update(query, update, ProductItemEntity::class.java).awaitSingle()
             log.info("updateResult product: $updateResult")
             log.info("updateResult updatedProduct: $updatedProduct")
             return@coroutineScopeWithObservation updatedProduct.toProductItem()
         }
-
 
         entityTemplate.insert(ProductItemEntity.of(productItem)).awaitSingle().toProductItem()
             .also { productItem ->
@@ -73,5 +70,6 @@ class ProductItemBaseRepositoryImpl(
 
         private const val INSERT = "ProductItemBaseRepository.insert"
         private const val INSERT_ALL = "ProductItemBaseRepository.insertAll"
+        private const val UPDATE = "ProductItemBaseRepository.update"
     }
 }

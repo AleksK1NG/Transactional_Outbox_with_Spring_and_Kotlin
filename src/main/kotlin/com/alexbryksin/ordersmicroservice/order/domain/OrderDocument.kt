@@ -58,3 +58,15 @@ fun OrderDocument.Companion.of(order: Order): OrderDocument = OrderDocument(
     createdAt = order.createdAt,
     updatedAt = order.updatedAt
 )
+
+fun Order.toDocument(): OrderDocument = OrderDocument(
+    id = this.id,
+    email = this.email,
+    address = this.address,
+    status = this.status,
+    version = this.version,
+    paymentId = this.paymentId,
+    productItems = this.productsList().toMutableList(),
+    createdAt = this.createdAt,
+    updatedAt = this.updatedAt
+)

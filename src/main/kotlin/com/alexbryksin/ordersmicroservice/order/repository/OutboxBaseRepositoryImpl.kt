@@ -19,6 +19,7 @@ class OutboxBaseRepositoryImpl(
     private val dbClient: DatabaseClient,
     private val txOp: TransactionalOperator,
     private val or: ObservationRegistry,
+    private val transactionalOperator: TransactionalOperator
 ) : OutboxBaseRepository {
 
     override suspend fun deleteOutboxRecordByID(id: UUID, callback: suspend () -> Unit): Long =

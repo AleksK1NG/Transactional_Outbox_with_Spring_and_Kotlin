@@ -9,7 +9,7 @@ import com.alexbryksin.ordersmicroservice.order.domain.OrderDocument.Companion.P
 import com.alexbryksin.ordersmicroservice.order.domain.OrderDocument.Companion.PRODUCT_ITEMS
 import com.alexbryksin.ordersmicroservice.order.domain.OrderDocument.Companion.STATUS
 import com.alexbryksin.ordersmicroservice.order.domain.OrderDocument.Companion.VERSION
-import com.alexbryksin.ordersmicroservice.order.domain.of
+import com.alexbryksin.ordersmicroservice.order.domain.toDocument
 import com.alexbryksin.ordersmicroservice.order.domain.toUUID
 import com.alexbryksin.ordersmicroservice.order.exceptions.OrderNotFoundException
 import com.alexbryksin.ordersmicroservice.utils.tracing.coroutineScopeWithObservation
@@ -39,7 +39,7 @@ class OrderMongoRepositoryImpl(
 
     override suspend fun insert(order: Order): Order = coroutineScopeWithObservation(INSERT, or) { observation ->
         withContext(Dispatchers.IO) {
-            mongoTemplate.insert(OrderDocument.of(order)).awaitSingle().toOrder()
+            mongoTemplate.insert(order.toDocument()).awaitSingle().toOrder()
                 .also { log.info("inserted order: $it") }
                 .also { observation.highCardinalityKeyValue("order", it.toString()) }
         }

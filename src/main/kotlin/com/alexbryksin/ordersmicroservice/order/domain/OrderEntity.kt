@@ -68,3 +68,14 @@ fun OrderEntity.Companion.of(row: Row) = OrderEntity(
     createdAt = row[CREATED_AT, LocalDateTime::class.java],
     updatedAt = row[UPDATED_AT, LocalDateTime::class.java],
 )
+
+fun Order.toEntity(): OrderEntity = OrderEntity(
+    id = this.id.toUUID(),
+    email = this.email,
+    address = this.address,
+    status = this.status,
+    version = this.version,
+    paymentId = this.paymentId,
+    createdAt = this.createdAt,
+    updatedAt = this.updatedAt
+)
