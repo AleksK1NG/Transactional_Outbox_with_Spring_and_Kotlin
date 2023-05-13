@@ -13,6 +13,7 @@ import com.alexbryksin.ordersmicroservice.order.events.OrderPaidEvent.Companion.
 import com.alexbryksin.ordersmicroservice.order.events.OrderSubmittedEvent.Companion.ORDER_SUBMITTED_EVENT
 import com.alexbryksin.ordersmicroservice.order.events.ProductItemAddedEvent.Companion.PRODUCT_ITEM_ADDED_EVENT
 import com.alexbryksin.ordersmicroservice.order.events.ProductItemRemovedEvent.Companion.PRODUCT_ITEM_REMOVED_EVENT
+import com.alexbryksin.ordersmicroservice.order.exceptions.AlreadyProcessedVersionException
 import com.alexbryksin.ordersmicroservice.order.exceptions.InvalidVersionException
 import com.alexbryksin.ordersmicroservice.utils.serializer.SerializationException
 import com.alexbryksin.ordersmicroservice.utils.serializer.Serializer
@@ -25,12 +26,11 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.slf4j.LoggerFactory
 import org.springframework.kafka.annotation.KafkaListener
 import org.springframework.kafka.support.Acknowledgment
-import org.springframework.stereotype.Component
 import reactor.util.retry.Retry
 import java.time.Duration
 
 
-@Component
+//@Component
 class OrderConsumer(
     private val kafkaTopicsConfiguration: KafkaTopicsConfiguration,
     private val serializer: Serializer,
@@ -63,8 +63,15 @@ class OrderConsumer(
             } catch (ex: Exception) {
                 observation.error(ex)
 
-                if (ex is SerializationException || ex is UnknownEventTypeException) {
-                    log.error("commit not serializable or unknown record: ${String(consumerRecord.value())}")
+                if (ex is SerializationException || ex is UnknownEventTypeException || ex is AlreadyProcessedVersionException) {
+                    log.error("commit not serializable, unknown or already processed record: ${String(consumerRecord.value())}")
+                    ack.acknowledge()
+                    return@coroutineScopeWithObservation
+                }
+
+                if (ex is InvalidVersionException) {
+                    log.warn("processing retry invalid version exception ${ex.localizedMessage}")
+                    publishRetryTopic(kafkaTopicsConfiguration.deadLetterQueue.name, consumerRecord, 1)
                     ack.acknowledge()
                     return@coroutineScopeWithObservation
                 }
@@ -80,6 +87,7 @@ class OrderConsumer(
     fun processRetry(ack: Acknowledgment, consumerRecord: ConsumerRecord<String, ByteArray>): Unit = runBlocking {
         coroutineScopeWithObservation(PROCESS_RETRY, or) { observation ->
             try {
+                log.warn("PROCESSING RETRY TOPIC RECORD >>>>>>>>>>>>> : $consumerRecord, value: ${String(consumerRecord.value())}")
                 observation.highCardinalityKeyValue("consumerRecord", consumerRecord.toString())
 
                 processOutboxRecord(serializer.deserialize(consumerRecord.value(), OutboxRecord::class.java))
@@ -89,20 +97,8 @@ class OrderConsumer(
             } catch (ex: Exception) {
                 observation.error(ex)
 
-                if (ex is SerializationException || ex is UnknownEventTypeException) {
-                    ack.acknowledge()
-                    log.error("commit not serializable or unknown record: ${String(consumerRecord.value())}")
-                    return@coroutineScopeWithObservation
-                }
-
                 val currentRetry = String(consumerRecord.headers().lastHeader(RETRY_COUNT_HEADER).value()).toInt()
                 observation.highCardinalityKeyValue("currentRetry", currentRetry.toString())
-
-                if (ex is InvalidVersionException) {
-                    log.info("processing retry invalid version exception ${ex.localizedMessage}")
-                    publishRetryTopic(kafkaTopicsConfiguration.deadLetterQueue.name, consumerRecord, currentRetry)
-                    return@coroutineScopeWithObservation
-                }
 
                 if (currentRetry > MAX_RETRY_COUNT) {
                     log.error("retry count exceed, send record to dlq: ${consumerRecord.topic()}")
@@ -110,6 +106,20 @@ class OrderConsumer(
                     ack.acknowledge()
                     return@coroutineScopeWithObservation
                 }
+
+                if (ex is SerializationException || ex is UnknownEventTypeException || ex is AlreadyProcessedVersionException) {
+                    log.error("commit not serializable, unknown or already processed record: ${String(consumerRecord.value())}")
+                    ack.acknowledge()
+                    return@coroutineScopeWithObservation
+                }
+
+
+                if (ex is InvalidVersionException) {
+                    log.warn("processing retry invalid version exception ${ex.localizedMessage}")
+                    publishRetryTopic(kafkaTopicsConfiguration.deadLetterQueue.name, consumerRecord, currentRetry)
+                    return@coroutineScopeWithObservation
+                }
+
 
                 log.error("exception while processing record: ${ex.localizedMessage}")
                 publishRetryTopic(kafkaTopicsConfiguration.retryTopic.name, consumerRecord, currentRetry + 1)

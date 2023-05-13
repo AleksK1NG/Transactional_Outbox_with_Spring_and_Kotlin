@@ -1,5 +1,7 @@
 package com.alexbryksin.ordersmicroservice.order.events
 
+import com.alexbryksin.ordersmicroservice.order.exceptions.AlreadyProcessedVersionException
+import com.alexbryksin.ordersmicroservice.order.exceptions.InvalidVersionException
 import com.alexbryksin.ordersmicroservice.order.repository.OrderMongoRepository
 import com.alexbryksin.ordersmicroservice.utils.tracing.coroutineScopeWithObservation
 import io.micrometer.observation.ObservationRegistry
@@ -23,76 +25,98 @@ class OrderEventProcessorImpl(
 
     override suspend fun on(productItemAddedEvent: ProductItemAddedEvent): Unit =
         coroutineScopeWithObservation(ON_ORDER_PRODUCT_ADDED_EVENT, or) { observation ->
-            orderMongoRepository.getByID(productItemAddedEvent.orderId).let {
-                it.addProductItem(productItemAddedEvent.productItem)
-                it.version = productItemAddedEvent.version
+            val order = orderMongoRepository.getByID(productItemAddedEvent.orderId)
+            validateVersion(order.id, order.version, productItemAddedEvent.version)
+//            if (order.version >= productItemAddedEvent.version) throw AlreadyProcessedVersionException(order.id, productItemAddedEvent.version)
+//            if (order.version + 1 < productItemAddedEvent.version) throw InvalidVersionException(productItemAddedEvent.version)
 
-                orderMongoRepository.update(it).also { order ->
-                    log.info("productItemAddedEvent updatedOrder: $order")
-                    observation.highCardinalityKeyValue("order", order.toString())
-                }
+
+            order.addProductItem(productItemAddedEvent.productItem)
+            order.version = productItemAddedEvent.version
+
+            orderMongoRepository.update(order).also {
+                log.info("productItemAddedEvent updatedOrder: $it")
+                observation.highCardinalityKeyValue("order", it.toString())
             }
         }
 
     override suspend fun on(productItemRemovedEvent: ProductItemRemovedEvent): Unit =
         coroutineScopeWithObservation(ON_ORDER_PRODUCT_REMOVED_EVENT, or) { observation ->
-            orderMongoRepository.getByID(productItemRemovedEvent.orderId).let {
-                it.removeProductItem(productItemRemovedEvent.productItemId)
-                it.version = productItemRemovedEvent.version
+            val order = orderMongoRepository.getByID(productItemRemovedEvent.orderId)
+//            if (order.version >= productItemRemovedEvent.version) throw AlreadyProcessedVersionException(order.id, productItemRemovedEvent.version)
+            validateVersion(order.id, order.version, productItemRemovedEvent.version)
 
-                orderMongoRepository.update(it).also { order ->
-                    log.info("productItemRemovedEvent updatedOrder: $order")
-                    observation.highCardinalityKeyValue("order", order.toString())
-                }
+
+            order.removeProductItem(productItemRemovedEvent.productItemId)
+            order.version = productItemRemovedEvent.version
+
+            orderMongoRepository.update(order).also {
+                log.info("productItemRemovedEvent updatedOrder: $it")
+                observation.highCardinalityKeyValue("order", it.toString())
             }
         }
 
     override suspend fun on(orderPaidEvent: OrderPaidEvent): Unit = coroutineScopeWithObservation(ON_ORDER_PAID_EVENT, or) { observation ->
-        orderMongoRepository.getByID(orderPaidEvent.orderId).let {
-            it.pay(orderPaidEvent.paymentId)
-            it.version = orderPaidEvent.version
+        val order = orderMongoRepository.getByID(orderPaidEvent.orderId)
+//        if (order.version >= orderPaidEvent.version) throw AlreadyProcessedVersionException(order.id, orderPaidEvent.version)
+        validateVersion(order.id, order.version, orderPaidEvent.version)
 
-            orderMongoRepository.update(it).also { order ->
-                log.info("orderPaidEvent updatedOrder: $order")
-                observation.highCardinalityKeyValue("order", order.toString())
-            }
+        order.pay(orderPaidEvent.paymentId)
+        order.version = orderPaidEvent.version
+
+        orderMongoRepository.update(order).also {
+            log.info("orderPaidEvent updatedOrder: $it")
+            observation.highCardinalityKeyValue("order", it.toString())
         }
     }
 
     override suspend fun on(orderCancelledEvent: OrderCancelledEvent): Unit = coroutineScopeWithObservation(ON_ORDER_CANCELLED_EVENT, or) { observation ->
-        orderMongoRepository.getByID(orderCancelledEvent.orderId).let {
-            it.cancel()
-            it.version = orderCancelledEvent.version
+        val order = orderMongoRepository.getByID(orderCancelledEvent.orderId)
+        validateVersion(order.id, order.version, orderCancelledEvent.version)
+//        if (order.version >= orderCancelledEvent.version) throw AlreadyProcessedVersionException(order.id, orderCancelledEvent.version)
 
-            orderMongoRepository.update(it).also { order ->
-                log.info("orderCancelledEvent updatedOrder: $order")
-                observation.highCardinalityKeyValue("order", order.toString())
-            }
+        order.cancel()
+        order.version = orderCancelledEvent.version
+
+        orderMongoRepository.update(order).also {
+            log.info("orderCancelledEvent updatedOrder: $it")
+            observation.highCardinalityKeyValue("order", it.toString())
         }
     }
 
     override suspend fun on(orderSubmittedEvent: OrderSubmittedEvent): Unit = coroutineScopeWithObservation(ON_ORDER_SUBMITTED_EVENT, or) { observation ->
-        orderMongoRepository.getByID(orderSubmittedEvent.orderId).let {
-            it.submit()
-            it.version = orderSubmittedEvent.version
+        val order = orderMongoRepository.getByID(orderSubmittedEvent.orderId)
+        validateVersion(order.id, order.version, orderSubmittedEvent.version)
+//        if (order.version >= orderSubmittedEvent.version) throw AlreadyProcessedVersionException(order.id, orderSubmittedEvent.version)
 
-            orderMongoRepository.update(it).also { order ->
-                log.info("orderSubmittedEvent updatedOrder: $order")
-                observation.highCardinalityKeyValue("order", order.toString())
-            }
+        order.submit()
+        order.version = orderSubmittedEvent.version
+
+        orderMongoRepository.update(order).also {
+            log.info("orderSubmittedEvent updatedOrder: $it")
+            observation.highCardinalityKeyValue("order", it.toString())
         }
     }
 
     override suspend fun on(orderCompletedEvent: OrderCompletedEvent): Unit = coroutineScopeWithObservation(ON_ORDER_COMPLETED_EVENT, or) { observation ->
-        orderMongoRepository.getByID(orderCompletedEvent.orderId).let {
-            it.complete()
-            it.version = orderCompletedEvent.version
+        val order = orderMongoRepository.getByID(orderCompletedEvent.orderId)
+        validateVersion(order.id, order.version, orderCompletedEvent.version)
+//        if (order.version >= orderCompletedEvent.version) throw AlreadyProcessedVersionException(order.id, orderCompletedEvent.version)
 
-            orderMongoRepository.update(it).also { order ->
-                log.info("orderCompletedEvent updatedOrder: $order")
-                observation.highCardinalityKeyValue("order", order.toString())
-            }
+
+        order.complete()
+        order.version = orderCompletedEvent.version
+
+        orderMongoRepository.update(order).also {
+            log.info("orderCompletedEvent updatedOrder: $it")
+            observation.highCardinalityKeyValue("order", it.toString())
         }
+    }
+
+    private fun validateVersion(id: Any, currentDomainVersion: Long, eventVersion: Long) {
+        log.info("validating version for id: $id, currentDomainVersion: $currentDomainVersion, eventVersion: $eventVersion")
+        if (currentDomainVersion >= eventVersion) throw AlreadyProcessedVersionException(id, eventVersion)
+        if (currentDomainVersion + 1 < eventVersion) throw InvalidVersionException(eventVersion)
     }
 
     companion object {
