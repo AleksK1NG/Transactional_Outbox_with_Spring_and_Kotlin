@@ -115,8 +115,14 @@ class OrderEventProcessorImpl(
 
     private fun validateVersion(id: Any, currentDomainVersion: Long, eventVersion: Long) {
         log.info("validating version for id: $id, currentDomainVersion: $currentDomainVersion, eventVersion: $eventVersion")
-        if (currentDomainVersion >= eventVersion) throw AlreadyProcessedVersionException(id, eventVersion)
-        if (currentDomainVersion + 1 < eventVersion) throw InvalidVersionException(eventVersion)
+        if (currentDomainVersion >= eventVersion) {
+            log.warn("currentDomainVersion >= eventVersion validating version for id: $id, currentDomainVersion: $currentDomainVersion, eventVersion: $eventVersion")
+            throw AlreadyProcessedVersionException(id, eventVersion)
+        }
+        if ((currentDomainVersion + 1) < eventVersion) {
+            log.warn("currentDomainVersion + 1) < eventVersion validating version for id: $id, currentDomainVersion: $currentDomainVersion, eventVersion: $eventVersion")
+            throw InvalidVersionException(eventVersion)
+        }
     }
 
     companion object {
