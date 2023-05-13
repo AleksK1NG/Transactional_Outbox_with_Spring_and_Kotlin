@@ -63,7 +63,7 @@ class OrderController(private val orderService: OrderService, private val or: Ob
             .also {
                 observation.highCardinalityKeyValue("CreateProductItemDTO", dto.toString())
                 observation.highCardinalityKeyValue("id", id.toString())
-                log.info("removeProductItem id: $id, dto: $dto")
+                log.info("addProductItem id: $id, dto: $dto")
             }
     }
 
