@@ -16,20 +16,16 @@ class OrderEventProcessorImpl(
 ) : OrderEventProcessor {
 
     override suspend fun on(orderCreatedEvent: OrderCreatedEvent): Unit = coroutineScopeWithObservation(ON_ORDER_CREATED_EVENT, or) { observation ->
-        orderMongoRepository.insert(orderCreatedEvent.order)
-            .also {
-                log.info("created order: $it")
-                observation.highCardinalityKeyValue("order", it.toString())
-            }
+        orderMongoRepository.insert(orderCreatedEvent.order).also {
+            log.info("created order: $it")
+            observation.highCardinalityKeyValue("order", it.toString())
+        }
     }
 
     override suspend fun on(productItemAddedEvent: ProductItemAddedEvent): Unit =
         coroutineScopeWithObservation(ON_ORDER_PRODUCT_ADDED_EVENT, or) { observation ->
             val order = orderMongoRepository.getByID(productItemAddedEvent.orderId)
             validateVersion(order.id, order.version, productItemAddedEvent.version)
-//            if (order.version >= productItemAddedEvent.version) throw AlreadyProcessedVersionException(order.id, productItemAddedEvent.version)
-//            if (order.version + 1 < productItemAddedEvent.version) throw InvalidVersionException(productItemAddedEvent.version)
-
 
             order.addProductItem(productItemAddedEvent.productItem)
             order.version = productItemAddedEvent.version
@@ -43,9 +39,7 @@ class OrderEventProcessorImpl(
     override suspend fun on(productItemRemovedEvent: ProductItemRemovedEvent): Unit =
         coroutineScopeWithObservation(ON_ORDER_PRODUCT_REMOVED_EVENT, or) { observation ->
             val order = orderMongoRepository.getByID(productItemRemovedEvent.orderId)
-//            if (order.version >= productItemRemovedEvent.version) throw AlreadyProcessedVersionException(order.id, productItemRemovedEvent.version)
             validateVersion(order.id, order.version, productItemRemovedEvent.version)
-
 
             order.removeProductItem(productItemRemovedEvent.productItemId)
             order.version = productItemRemovedEvent.version
@@ -58,7 +52,6 @@ class OrderEventProcessorImpl(
 
     override suspend fun on(orderPaidEvent: OrderPaidEvent): Unit = coroutineScopeWithObservation(ON_ORDER_PAID_EVENT, or) { observation ->
         val order = orderMongoRepository.getByID(orderPaidEvent.orderId)
-//        if (order.version >= orderPaidEvent.version) throw AlreadyProcessedVersionException(order.id, orderPaidEvent.version)
         validateVersion(order.id, order.version, orderPaidEvent.version)
 
         order.pay(orderPaidEvent.paymentId)
@@ -73,7 +66,6 @@ class OrderEventProcessorImpl(
     override suspend fun on(orderCancelledEvent: OrderCancelledEvent): Unit = coroutineScopeWithObservation(ON_ORDER_CANCELLED_EVENT, or) { observation ->
         val order = orderMongoRepository.getByID(orderCancelledEvent.orderId)
         validateVersion(order.id, order.version, orderCancelledEvent.version)
-//        if (order.version >= orderCancelledEvent.version) throw AlreadyProcessedVersionException(order.id, orderCancelledEvent.version)
 
         order.cancel()
         order.version = orderCancelledEvent.version
@@ -87,7 +79,6 @@ class OrderEventProcessorImpl(
     override suspend fun on(orderSubmittedEvent: OrderSubmittedEvent): Unit = coroutineScopeWithObservation(ON_ORDER_SUBMITTED_EVENT, or) { observation ->
         val order = orderMongoRepository.getByID(orderSubmittedEvent.orderId)
         validateVersion(order.id, order.version, orderSubmittedEvent.version)
-//        if (order.version >= orderSubmittedEvent.version) throw AlreadyProcessedVersionException(order.id, orderSubmittedEvent.version)
 
         order.submit()
         order.version = orderSubmittedEvent.version
@@ -101,8 +92,6 @@ class OrderEventProcessorImpl(
     override suspend fun on(orderCompletedEvent: OrderCompletedEvent): Unit = coroutineScopeWithObservation(ON_ORDER_COMPLETED_EVENT, or) { observation ->
         val order = orderMongoRepository.getByID(orderCompletedEvent.orderId)
         validateVersion(order.id, order.version, orderCompletedEvent.version)
-//        if (order.version >= orderCompletedEvent.version) throw AlreadyProcessedVersionException(order.id, orderCompletedEvent.version)
-
 
         order.complete()
         order.version = orderCompletedEvent.version
