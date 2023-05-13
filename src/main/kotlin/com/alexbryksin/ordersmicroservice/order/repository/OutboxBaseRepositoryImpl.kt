@@ -46,7 +46,7 @@ class OutboxBaseRepositoryImpl(
         coroutineScopeWithObservation(DELETE_OUTBOX_RECORD_WITH_LOCK, or) { observation ->
             withTimeout(DELETE_OUTBOX_RECORD_TIMEOUT_MILLIS) {
                 txOp.executeAndAwait {
-                    log.info("starting delete outbox events")
+                    log.debug("starting delete outbox events")
 
                     dbClient.sql("SELECT * FROM microservices.outbox_table ORDER BY timestamp ASC LIMIT 10 FOR UPDATE SKIP LOCKED")
                         .map { row, _ -> OutboxRecord.of(row) }
@@ -66,7 +66,7 @@ class OutboxBaseRepositoryImpl(
                             observation.highCardinalityKeyValue("eventId", it.eventId.toString())
                         }
                         .collect()
-                    log.info("complete delete outbox events")
+                    log.debug("complete delete outbox events")
                 }
             }
         }

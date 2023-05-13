@@ -40,10 +40,9 @@ springdoc:
     path: /swagger-ui.html
 
 
-
 schedulers:
   outbox:
-    enable: false
+    enable: true
     initialDelayMillis: 3000
     fixedRate: 1000
 
@@ -67,7 +66,8 @@ management:
 
 logging:
   level:
-    io.r2dbc.postgresql.QUERY: DEBUG
+    io.r2dbc.postgresql.QUERY: INFO
+    com.alexbryksin.ordersmicroservice.order.repository.OutboxBaseRepositoryImpl: INFO
 
 
 topics:
