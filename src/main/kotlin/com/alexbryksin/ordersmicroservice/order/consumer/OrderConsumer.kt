@@ -92,7 +92,7 @@ class OrderConsumer(
     fun processRetry(ack: Acknowledgment, consumerRecord: ConsumerRecord<String, ByteArray>): Unit = runBlocking {
         coroutineScopeWithObservation(PROCESS_RETRY, or) { observation ->
             try {
-                log.warn("PROCESSING RETRY TOPIC RECORD >>>>>>>>>>>>> : $consumerRecord, value: ${String(consumerRecord.value())}")
+                log.warn("processing retry topic record >>>>>>>>>>>>> : ${getConsumerRecordInfoWithHeaders(consumerRecord)}")
                 observation.highCardinalityKeyValue("consumerRecord", getConsumerRecordInfoWithHeaders(consumerRecord))
 
                 processOutboxRecord(serializer.deserialize(consumerRecord.value(), OutboxRecord::class.java))
@@ -108,7 +108,7 @@ class OrderConsumer(
 
                 if (ex is InvalidVersionException || ex is NoSuchElementException || ex is OrderNotFoundException) {
                     publishRetryTopic(kafkaTopicsConfiguration.retryTopic.name, consumerRecord, currentRetry)
-                    log.warn(">>>>>> InvalidVersionException >>>>>>>>>>>>>>>>>>>>>> processing retry invalid version exception ${ex.localizedMessage}")
+                    log.warn("ack concurrency write or version exception ${ex.localizedMessage},record: ${getConsumerRecordInfoWithHeaders(consumerRecord)}")
                     ack.acknowledge()
                     return@coroutineScopeWithObservation
                 }
@@ -116,7 +116,7 @@ class OrderConsumer(
                 if (currentRetry > MAX_RETRY_COUNT) {
                     publishRetryTopic(kafkaTopicsConfiguration.deadLetterQueue.name, consumerRecord, currentRetry + 1)
                     ack.acknowledge()
-                    log.error("MAX_RETRY_COUNT retry count exceed, send record to dlq: ${getConsumerRecordInfoWithHeaders(consumerRecord)}")
+                    log.error("MAX_RETRY_COUNT exceed, send record to DLQ: ${getConsumerRecordInfoWithHeaders(consumerRecord)}")
                     return@coroutineScopeWithObservation
                 }
 
@@ -126,7 +126,7 @@ class OrderConsumer(
                     return@coroutineScopeWithObservation
                 }
 
-                log.error("exception while processing ex:  ${ex.localizedMessage}, record: ${getConsumerRecordInfoWithHeaders(consumerRecord)}")
+                log.error("exception while processing: ${ex.localizedMessage}, record: ${getConsumerRecordInfoWithHeaders(consumerRecord)}")
                 publishRetryTopic(kafkaTopicsConfiguration.retryTopic.name, consumerRecord, currentRetry + 1)
                 ack.acknowledge()
             }
