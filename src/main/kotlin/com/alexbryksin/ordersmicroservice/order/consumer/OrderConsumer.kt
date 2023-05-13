@@ -57,37 +57,32 @@ class OrderConsumer(
     fun process(ack: Acknowledgment, consumerRecord: ConsumerRecord<String, ByteArray>) = runBlocking {
         coroutineScopeWithObservation(PROCESS, or) { observation ->
             try {
-                observation.highCardinalityKeyValue("consumerRecord", consumerRecord.toString())
+                observation.highCardinalityKeyValue("consumerRecord", getConsumerRecordInfoWithHeaders(consumerRecord))
 
                 processOutboxRecord(serializer.deserialize(consumerRecord.value(), OutboxRecord::class.java))
                 ack.acknowledge()
 
-                log.info("committed record topic: ${consumerRecord.topic()}, key: ${consumerRecord.key()}, offset: ${consumerRecord.offset()} partition: ${consumerRecord.partition()}")
+                log.info("committed record: ${getConsumerRecordInfo(consumerRecord)}")
             } catch (ex: Exception) {
+                observation.highCardinalityKeyValue("consumerRecord", getConsumerRecordInfoWithHeaders(consumerRecord))
                 observation.error(ex)
 
                 if (ex is SerializationException || ex is UnknownEventTypeException || ex is AlreadyProcessedVersionException) {
-                    log.error("commit not serializable, unknown or already processed record: ${String(consumerRecord.value())}")
+                    log.error("ack not serializable, unknown or already processed record: ${getConsumerRecordInfoWithHeaders(consumerRecord)}")
                     ack.acknowledge()
                     return@coroutineScopeWithObservation
                 }
 
                 if (ex is InvalidVersionException || ex is NoSuchElementException || ex is OrderNotFoundException) {
-                    if (ex is NoSuchElementException) {
-                        log.warn("NoSuchElementException: $ex")
-                    }
-                    if (ex is OrderNotFoundException) {
-                        log.warn("OrderNotFoundException: $ex")
-                    }
                     publishRetryTopic(kafkaTopicsConfiguration.retryTopic.name, consumerRecord, 1)
                     ack.acknowledge()
-                    log.warn(">>>>>>>>> InvalidVersionException >>>>>>>>>>>>>>>>>> processing retry invalid version exception ${ex.localizedMessage}")
+                    log.warn("ack concurrency write or version exception ${ex.localizedMessage}")
                     return@coroutineScopeWithObservation
                 }
 
-                log.error("exception while processing record: $consumerRecord", ex)
                 publishRetryTopic(kafkaTopicsConfiguration.retryTopic.name, consumerRecord, 1)
                 ack.acknowledge()
+                log.error("ack exception while processing record: ${getConsumerRecordInfoWithHeaders(consumerRecord)}", ex)
             }
         }
     }
@@ -98,20 +93,20 @@ class OrderConsumer(
         coroutineScopeWithObservation(PROCESS_RETRY, or) { observation ->
             try {
                 log.warn("PROCESSING RETRY TOPIC RECORD >>>>>>>>>>>>> : $consumerRecord, value: ${String(consumerRecord.value())}")
-                observation.highCardinalityKeyValue("consumerRecord", consumerRecord.toString())
+                observation.highCardinalityKeyValue("consumerRecord", getConsumerRecordInfoWithHeaders(consumerRecord))
 
                 processOutboxRecord(serializer.deserialize(consumerRecord.value(), OutboxRecord::class.java))
                 ack.acknowledge()
 
-                log.info("committed retry record topic: ${consumerRecord.topic()}, key: ${consumerRecord.key()}, offset: ${consumerRecord.offset()} partition: ${consumerRecord.partition()}")
+                log.info("committed retry record: ${getConsumerRecordInfo(consumerRecord)}")
             } catch (ex: Exception) {
+                observation.highCardinalityKeyValue("consumerRecord", getConsumerRecordInfoWithHeaders(consumerRecord))
                 observation.error(ex)
 
                 val currentRetry = String(consumerRecord.headers().lastHeader(RETRY_COUNT_HEADER).value()).toInt()
                 observation.highCardinalityKeyValue("currentRetry", currentRetry.toString())
 
-
-                if (ex is InvalidVersionException) {
+                if (ex is InvalidVersionException || ex is NoSuchElementException || ex is OrderNotFoundException) {
                     publishRetryTopic(kafkaTopicsConfiguration.retryTopic.name, consumerRecord, currentRetry)
                     log.warn(">>>>>> InvalidVersionException >>>>>>>>>>>>>>>>>>>>>> processing retry invalid version exception ${ex.localizedMessage}")
                     ack.acknowledge()
@@ -121,17 +116,17 @@ class OrderConsumer(
                 if (currentRetry > MAX_RETRY_COUNT) {
                     publishRetryTopic(kafkaTopicsConfiguration.deadLetterQueue.name, consumerRecord, currentRetry + 1)
                     ack.acknowledge()
-                    log.error("MAX_RETRY_COUNT retry count exceed, send record to dlq: ${consumerRecord.topic()}")
+                    log.error("MAX_RETRY_COUNT retry count exceed, send record to dlq: ${getConsumerRecordInfoWithHeaders(consumerRecord)}")
                     return@coroutineScopeWithObservation
                 }
 
                 if (ex is SerializationException || ex is UnknownEventTypeException || ex is AlreadyProcessedVersionException) {
                     ack.acknowledge()
-                    log.error("commit not serializable, unknown or already processed record: ${String(consumerRecord.value())}")
+                    log.error("commit not serializable, unknown or already processed record: ${getConsumerRecordInfoWithHeaders(consumerRecord)}")
                     return@coroutineScopeWithObservation
                 }
 
-                log.error("exception while processing record: ${ex.localizedMessage}")
+                log.error("exception while processing ex:  ${ex.localizedMessage}, record: ${getConsumerRecordInfoWithHeaders(consumerRecord)}")
                 publishRetryTopic(kafkaTopicsConfiguration.retryTopic.name, consumerRecord, currentRetry + 1)
                 ack.acknowledge()
             }
@@ -223,6 +218,22 @@ class OrderConsumer(
             else -> throw UnknownEventTypeException(outboxRecord.eventType)
         }
     }
+
+    private fun getConsumerRecordInfo(consumerRecord: ConsumerRecord<String, ByteArray>): String {
+        val topic = consumerRecord.topic()
+        val offset = consumerRecord.offset()
+        val key = consumerRecord.key()
+        val partition = consumerRecord.partition()
+        val timestamp = consumerRecord.timestamp()
+        val value = String(consumerRecord.value())
+        return "topic: $topic key: $key partition: $partition offset: $offset timestamp: $timestamp value: $value"
+    }
+
+    private fun getConsumerRecordInfoWithHeaders(consumerRecord: ConsumerRecord<String, ByteArray>): String {
+        val headers = consumerRecord.headers()
+        return "${getConsumerRecordInfo(consumerRecord)}, headers: $headers"
+    }
+
 
     companion object {
         private val log = LoggerFactory.getLogger(OrderConsumer::class.java)
