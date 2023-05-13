@@ -1,4 +1,4 @@
-### Spring Transactional Outbox Pattern implementation 👋✨💫
+### Transactional Outbox Pattern implementation with Spring 👋✨💫
 
 #### 👨‍💻 Full list what has been used:
 [Spring Boot 3](https://spring.io/) web framework <br/>
