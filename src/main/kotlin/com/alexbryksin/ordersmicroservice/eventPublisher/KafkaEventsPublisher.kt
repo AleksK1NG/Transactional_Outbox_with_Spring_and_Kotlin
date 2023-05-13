@@ -89,8 +89,7 @@ class KafkaEventsPublisher(
     }
 
     override suspend fun publishRetryRecord(topic: String?, key: String, record: ConsumerRecord<String, ByteArray>): Unit =
-        coroutineScopeWithObservation(PUBLISH, or) { observation ->
-
+        coroutineScopeWithObservation(PUBLISH, or) {
             val msg = ProducerRecord(topic, key, record.value())
             record.headers().forEach { msg.headers().add(it) }
             val result = kafkaTemplate.send(msg).await()

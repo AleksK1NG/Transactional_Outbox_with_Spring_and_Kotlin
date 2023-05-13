@@ -26,7 +26,7 @@ class OrderController(private val orderService: OrderService, private val or: Ob
     ) = coroutineScopeWithObservation(GET_ORDERS, or) { observation ->
         ResponseEntity.ok()
             .body(orderService.getAllOrders(PageRequest.of(page, size))
-                .map { OrderSuccessResponse.of(it) }
+                .map { it.toSuccessResponse() }
                 .also { response -> observation.highCardinalityKeyValue("response", response.toString()) }
             )
     }
@@ -34,8 +34,7 @@ class OrderController(private val orderService: OrderService, private val or: Ob
     @GetMapping(path = ["{id}"])
     @Operation(method = "getOrderByID", summary = "get order by id", operationId = "getOrderByID")
     suspend fun getOrderByID(@PathVariable id: String) = coroutineScopeWithObservation(GET_ORDER_BY_ID, or) { observation ->
-        orderService.getOrderWithProductsByID(UUID.fromString(id))
-            .let { ResponseEntity.ok().body(OrderSuccessResponse.of(it)) }
+        ResponseEntity.ok().body(orderService.getOrderWithProductsByID(UUID.fromString(id)).toSuccessResponse())
             .also { response ->
                 observation.highCardinalityKeyValue("response", response.toString())
                 log.info("getOrderByID response: $response")
@@ -45,11 +44,11 @@ class OrderController(private val orderService: OrderService, private val or: Ob
     @PostMapping
     @Operation(method = "createOrder", summary = "create new order", operationId = "createOrder")
     suspend fun createOrder(@Valid @RequestBody createOrderDTO: CreateOrderDTO) = coroutineScopeWithObservation(CREATE_ORDER, or) { observation ->
-        orderService.createOrder(createOrderDTO.toOrder()).let {
-            log.info("created order: $it")
-            observation.highCardinalityKeyValue("response", it.toString())
-            ResponseEntity.status(HttpStatus.CREATED).body(OrderSuccessResponse.of(it))
-        }
+        ResponseEntity.status(HttpStatus.CREATED).body(orderService.createOrder(createOrderDTO.toOrder()).toSuccessResponse())
+            .also {
+                log.info("created order: $it")
+                observation.highCardinalityKeyValue("response", it.toString())
+            }
     }
 
     @PutMapping(path = ["/add/{id}"])
@@ -58,8 +57,7 @@ class OrderController(private val orderService: OrderService, private val or: Ob
         @PathVariable id: UUID,
         @Valid @RequestBody dto: CreateProductItemDTO
     ) = coroutineScopeWithObservation(ADD_PRODUCT, or) { observation ->
-        orderService.addProductItem(dto.toProductItem(id))
-            .let { ResponseEntity.ok(it) }
+        ResponseEntity.ok().body(orderService.addProductItem(dto.toProductItem(id)))
             .also {
                 observation.highCardinalityKeyValue("CreateProductItemDTO", dto.toString())
                 observation.highCardinalityKeyValue("id", id.toString())
@@ -73,7 +71,7 @@ class OrderController(private val orderService: OrderService, private val or: Ob
         @PathVariable orderId: UUID,
         @PathVariable productItemId: UUID
     ) = coroutineScopeWithObservation(REMOVE_PRODUCT, or) { observation ->
-        orderService.removeProductItem(orderId, productItemId).let { ResponseEntity.ok(it) }
+        ResponseEntity.ok().body(orderService.removeProductItem(orderId, productItemId))
             .also {
                 observation.highCardinalityKeyValue("productItemId", productItemId.toString())
                 observation.highCardinalityKeyValue("orderId", orderId.toString())
@@ -84,8 +82,7 @@ class OrderController(private val orderService: OrderService, private val or: Ob
     @PutMapping(path = ["/pay/{id}"])
     @Operation(method = "payOrder", summary = "pay order", operationId = "payOrder")
     suspend fun payOrder(@PathVariable id: UUID, @Valid @RequestBody dto: PayOrderDTO) = coroutineScopeWithObservation(PAY_ORDER, or) { observation ->
-        orderService.pay(id, dto.paymentId)
-            .let { ResponseEntity.ok(OrderSuccessResponse.of(it)) }
+        ResponseEntity.ok().body(orderService.pay(id, dto.paymentId).toSuccessResponse())
             .also {
                 observation.highCardinalityKeyValue("response", it.toString())
                 log.info("payOrder result: $it")
@@ -95,8 +92,7 @@ class OrderController(private val orderService: OrderService, private val or: Ob
     @PutMapping(path = ["/cancel/{id}"])
     @Operation(method = "cancelOrder", summary = "cancel order", operationId = "cancelOrder")
     suspend fun cancelOrder(@PathVariable id: UUID, @Valid @RequestBody dto: CancelOrderDTO) = coroutineScopeWithObservation(CANCEL_ORDER, or) { observation ->
-        orderService.cancel(id, dto.reason)
-            .let { ResponseEntity.ok(OrderSuccessResponse.of(it)) }
+        ResponseEntity.ok().body(orderService.cancel(id, dto.reason).toSuccessResponse())
             .also {
                 observation.highCardinalityKeyValue("response", it.toString())
                 log.info("cancelOrder result: $it")
@@ -106,7 +102,7 @@ class OrderController(private val orderService: OrderService, private val or: Ob
     @PutMapping(path = ["/submit/{id}"])
     @Operation(method = "submitOrder", summary = "submit order", operationId = "submitOrder")
     suspend fun submitOrder(@PathVariable id: UUID) = coroutineScopeWithObservation(SUBMIT_ORDER, or) { observation ->
-        orderService.submit(id).let { ResponseEntity.ok(OrderSuccessResponse.of(it)) }
+        ResponseEntity.ok().body(orderService.submit(id).toSuccessResponse())
             .also {
                 observation.highCardinalityKeyValue("response", it.toString())
                 log.info("submitOrder result: $it")
@@ -116,7 +112,7 @@ class OrderController(private val orderService: OrderService, private val or: Ob
     @PutMapping(path = ["/complete/{id}"])
     @Operation(method = "completeOrder", summary = "complete order", operationId = "completeOrder")
     suspend fun completeOrder(@PathVariable id: UUID) = coroutineScopeWithObservation(COMPLETE_ORDER, or) { observation ->
-        orderService.complete(id).let { ResponseEntity.ok(OrderSuccessResponse.of(it)) }
+        ResponseEntity.ok().body(orderService.complete(id).toSuccessResponse())
             .also {
                 observation.highCardinalityKeyValue("response", it.toString())
                 log.info("completeOrder result: $it")

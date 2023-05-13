@@ -89,7 +89,7 @@ class GlobalControllerAdvice {
     fun handleServerWebInputException(ex: ServerWebInputException, request: ServerHttpRequest): ResponseEntity<ErrorHttpResponse> {
         val errorHttpResponse = ErrorHttpResponse(
             HttpStatus.BAD_REQUEST.value(),
-            ex.message ?: "",
+            ex.message,
             LocalDateTime.now().toString()
         )
         return ResponseEntity

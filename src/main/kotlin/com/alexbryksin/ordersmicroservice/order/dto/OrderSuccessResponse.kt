@@ -28,3 +28,15 @@ fun OrderSuccessResponse.Companion.of(order: Order): OrderSuccessResponse = Orde
     createdAt = order.createdAt.toString(),
     updatedAt = order.updatedAt.toString(),
 )
+
+fun Order.toSuccessResponse(): OrderSuccessResponse = OrderSuccessResponse(
+    id = this.id,
+    email = this.email,
+    address = this.address,
+    status = this.status,
+    version = this.version,
+    paymentId = this.paymentId,
+    productItems = this.productsList().map { ProductItemSuccessResponse.of(it) }.toList(),
+    createdAt = this.createdAt.toString(),
+    updatedAt = this.updatedAt.toString(),
+)
