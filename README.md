@@ -5,7 +5,6 @@
 The reason why we need **Transactional Outbox** is that a service often needs to publish messages as part of a transaction that updates the database.
 Both the database update and the sending of the message must happen within a transaction.
 Otherwise, if the service doesn’t perform these two operations atomically, a failure could leave the system in an inconsistent state.
-The [GitHub repository with source code](https://github.com/AleksK1NG/Transactional_Outbox_with_Spring_and_Kotlin) for this article.
 
 <img src="https://i.postimg.cc/ZKK0fPNp/Chris-Richardson-Microservices-Patterns-With-ex-1-pdf-2023-05-12-17-13-43.png" alt="Transactional Outbox"/>
 
@@ -1075,7 +1074,6 @@ class OrderMongoRepositoryImpl(
 }
 ```
 
-More details and source code of the full project you can find [here](https://github.com/AleksK1NG/Transactional_Outbox_with_Spring_and_Kotlin),
 of course in real-world applications, we have to implement many more necessary features, like k8s health checks, rate limiters, etc.,
 depending on the project it can be implemented in different ways, for example, you can use Kubernetes and Istio for some of them.
 I hope this article is usefully and helpfully, and be happy to receive any feedback or questions, feel free to contact [me](https://www.linkedin.com/in/alexander-bryksin/) by [email](alexander.bryksin@yandex.ru) or any [messengers](https://t.me/AlexanderBryksin) :)
