@@ -9,7 +9,7 @@ The [GitHub repository with source code](https://github.com/AleksK1NG/Transactio
 
 <img src="https://i.postimg.cc/ZKK0fPNp/Chris-Richardson-Microservices-Patterns-With-ex-1-pdf-2023-05-12-17-13-43.png" alt="Transactional Outbox"/>
 
-In this article we will implement very commonly used in microservices architecture **Transactional Outbox** pattern using Reactive Spring and Kotlin with coroutines.
+In this article we will implement it using Reactive Spring and Kotlin with coroutines.
 Full list of used dependencies: **Kotlin with coroutines**, **Spring Boot 3**, **WebFlux**, **R2DBC**, **Postgres**, **MongoDB**,
 **Kafka**, **Grafana**, **Prometheus**, **Zipkin** and **Micrometer** for observability.
 
